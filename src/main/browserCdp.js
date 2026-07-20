@@ -31,14 +31,53 @@ async function connectBrowser(openData, { retries = 8, delayMs = 400 } = {}) {
   throw new Error('Khong ket noi CDP (' + endpoint + '): ' + (lastErr && lastErr.message));
 }
 
+function normalizeUrl(input) {
+  if (!input) return '';
+  return String(input).trim().replace(/\/+$/, '').toLowerCase();
+}
+
+function isSameUrl(pageUrl, targetUrl) {
+  if (!pageUrl || !targetUrl) return false;
+  return normalizeUrl(pageUrl).startsWith(normalizeUrl(targetUrl));
+}
+
 /**
- * Lay context dau tien (profile dang mo) va tao tab moi.
+ * Lay context dau tien (profile dang mo) va tao tab moi, hoac tai su dung tab da mo.
  * @returns {Promise<{ browser: import('playwright-core').Browser, page: import('playwright-core').Page }>}
  */
-async function openPage(openData) {
+async function openPage(openData, options = {}) {
   const browser = await connectBrowser(openData);
   const context = browser.contexts()[0] || (await browser.newContext());
-  const page = await context.newPage();
+  const {
+    reuseUrl = null,
+    pruneExtraMatchingPages = false,
+    keepMatchingPages = 1,
+  } = options;
+
+  let page = null;
+  if (reuseUrl) {
+    const candidates = context.pages().filter((p) => {
+      if (!p || p.isClosed()) return false;
+      return isSameUrl(p.url(), reuseUrl);
+    });
+
+    if (candidates.length) {
+      page = candidates[candidates.length - 1];
+      if (pruneExtraMatchingPages && candidates.length > keepMatchingPages) {
+        const toClose = candidates.slice(0, Math.max(0, candidates.length - keepMatchingPages));
+        for (const p of toClose) {
+          try {
+            if (p !== page && !p.isClosed()) await p.close({ runBeforeUnload: false });
+          } catch { /* ignore */ }
+        }
+      }
+      try {
+        await page.bringToFront();
+      } catch { /* ignore */ }
+    }
+  }
+
+  if (!page) page = await context.newPage();
   return { browser, page };
 }
 

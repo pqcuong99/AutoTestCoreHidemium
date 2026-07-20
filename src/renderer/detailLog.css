@@ -76,17 +76,30 @@
 .dl-cur-uuid { font-family: Consolas, monospace; font-size: 11px; color: var(--muted); margin-top: 2px; }
 .dl-cur-meta { font-size: 11px; color: var(--muted); text-align: right; line-height: 1.6; }
 
-.dl-table-wrap { flex: 1; overflow: auto; padding: 0; min-height: 0; }
-/* min-width = col-a 165 + col-b 300 + (so website x 145). Them website -> cong them 145. */
-.dl-tbl { width: 100%; min-width: 1190px; border-collapse: collapse; font-size: 12px; table-layout: fixed; }
+.dl-table-wrap {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+/* Bang rong hon viewport -> scroll ngang. min-width = 165 + 300 + (5 x 145). */
+.dl-tbl {
+  width: max-content;
+  min-width: 1190px;
+  border-collapse: collapse;
+  font-size: 12px;
+  table-layout: fixed;
+}
 .dl-tbl thead th {
   position: sticky; top: 0; z-index: 2; background: var(--panel-2);
   text-align: left; padding: 8px 10px; font-weight: 600; color: #cbd5e1;
   border-bottom: 1px solid var(--border); border-right: 1px solid var(--border);
 }
-.dl-tbl th.col-a { width: 165px; }
-.dl-tbl th.col-b { width: 300px; }
-.dl-tbl th.col-site { width: 145px; }
+.dl-tbl th.col-a { width: 165px; min-width: 165px; }
+.dl-tbl th.col-b { width: 300px; min-width: 300px; }
+.dl-tbl th.col-site { width: 145px; min-width: 145px; }
 .dl-tbl td {
   padding: 7px 10px; border-bottom: 1px solid #24324a; border-right: 1px solid #24324a;
   vertical-align: top; word-break: break-word;
@@ -97,7 +110,7 @@
 
 .kv { display: flex; gap: 6px; line-height: 1.5; }
 .kv-k { color: #64748b; flex: none; max-width: 45%; overflow: hidden; text-overflow: ellipsis; }
-.kv-v { color: #e2e8f0; font-family: Consolas, monospace; font-size: 11px; word-break: break-all; }
+.kv-v { color: #e2e8f0; font-family: Consolas, monospace; font-size: 11px; word-break: break-word; }
 .kv-more { color: #60a5fa; cursor: pointer; font-size: 11px; }
 .cell-missing { color: #64748b; font-style: italic; }
 
@@ -107,13 +120,20 @@
 .site-pass { color: #86efac; }
 .site-fail { color: #fca5a5; }
 
-.site-lines { display: flex; flex-direction: column; gap: 2px; font-family: Consolas, monospace; }
-.site-line { display: flex; gap: 6px; padding: 1px 4px; border-radius: 3px; line-height: 1.45; }
-.site-line-k { color: #64748b; flex: none; }
-.site-line-v { word-break: break-all; }
+.site-lines { display: flex; flex-direction: column; gap: 4px; font-family: Consolas, ui-monospace, monospace; }
+.site-line {
+  display: block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  line-height: 1.4;
+  font-size: 11px;
+  white-space: normal;
+  overflow-wrap: break-word;
+  word-break: normal;
+}
 .site-line-pass { background: rgba(34, 197, 94, 0.18); color: #86efac; }
 .site-line-fail { background: rgba(239, 68, 68, 0.22); color: #fca5a5; }
-.site-line-na { color: #94a3b8; }
+.site-line-na { background: rgba(148, 163, 184, 0.08); color: #94a3b8; }
 
 .dl-log-head {
   padding: 6px 14px; font-size: 10px; text-transform: uppercase; letter-spacing: .6px;
