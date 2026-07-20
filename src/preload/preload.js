@@ -12,9 +12,8 @@ contextBridge.exposeInMainWorld('api', {
   meta: {
     all: () => ipcRenderer.invoke('meta:all'),
   },
-  file: {
-    pick: () => ipcRenderer.invoke('file:pick'),
-    read: (filePath) => ipcRenderer.invoke('file:read', filePath),
+  profiles: {
+    list: (payload) => ipcRenderer.invoke('profiles:list', payload),
   },
   profile: {
     readConfig: (profilePath) => ipcRenderer.invoke('profile:read-config', profilePath),

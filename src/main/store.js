@@ -8,7 +8,7 @@ const { app } = require('electron');
 const { CHECK_KEYS } = require('../shared/checkItems');
 
 const DEFAULTS = {
-  excelPath: '',          // duong dan file excel gan nhat
+  sourceMode: 'cloud',    // tab dang chon: 'cloud' (is_local=false) | 'local' (is_local=true)
   threads: 5,             // so luong chay song song
   checks: CHECK_KEYS.reduce((acc, k) => ({ ...acc, [k]: true }), {}),
   selectedUuids: [],      // cac uuid da tick lan truoc

@@ -13,7 +13,7 @@
       <span class="logo">HD</span>
       <div>
         <h1>Auto Test Core Hidemium</h1>
-        <p class="sub">Chon file Excel/CSV &rarr; tick profile &rarr; chay check</p>
+        <p class="sub">Chon Cloud/Local &rarr; tick profile &rarr; chay check</p>
       </div>
     </div>
     <div class="topbar-actions">
@@ -34,17 +34,24 @@
     </div>
   </header>
 
-  <!-- Thanh chon file -->
+  <!-- Thanh chon nguon profile -->
   <section class="filebar">
-    <button id="btn-pick" class="btn btn-icon" title="Chon file Excel / CSV">
-      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
-        <path fill="currentColor" d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2z"/>
-      </svg>
-      <span>Chon file</span>
-    </button>
-    <input id="txt-path" class="path-input" type="text" readonly placeholder="Chua chon file Excel / CSV..." />
-    <button id="btn-reload" class="btn btn-ghost" title="Tai lai file">&#8635;</button>
-    <span id="file-info" class="file-info"></span>
+    <div class="source-tabs">
+      <button id="tab-cloud" class="tab" title="Profile tren Cloud (is_local=false)">
+        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+          <path fill="currentColor" d="M6 19a5 5 0 0 1-.5-9.98A6 6 0 0 1 17.7 8.1 4.5 4.5 0 0 1 17.5 19H6Z"/>
+        </svg>
+        <span>Cloud</span>
+      </button>
+      <button id="tab-local" class="tab" title="Profile tren may (is_local=true)">
+        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+          <path fill="currentColor" d="M4 5h16a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1M2 18h20v2H2z"/>
+        </svg>
+        <span>Local</span>
+      </button>
+    </div>
+    <button id="btn-reload" class="btn btn-ghost" title="Tai lai danh sach">&#8635;</button>
+    <span id="source-info" class="file-info"></span>
   </section>
 
   <main class="layout">
@@ -71,8 +78,9 @@
           </thead>
           <tbody id="tbody"></tbody>
         </table>
-        <div id="empty" class="empty">Chua co du lieu. Hay chon file Excel / CSV.</div>
+        <div id="empty" class="empty">Chua co du lieu. Bam Tai lai de goi API.</div>
       </div>
+      <div id="pager" class="pager"></div>
     </section>
 
     <!-- Settings -->
@@ -169,7 +177,7 @@
   <script src="js/detail/render.js"></script>
   <script src="js/detail/detailLog.js"></script>
   <script src="js/state.js"></script>
-  <script src="js/filePicker.js"></script>
+  <script src="js/profileSource.js"></script>
   <script src="js/table.js"></script>
   <script src="js/settings.js"></script>
   <script src="js/runnerUI.js"></script>

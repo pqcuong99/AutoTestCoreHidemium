@@ -32,6 +32,50 @@ function httpGetJson(url, { timeout = DEFAULT_TIMEOUT, signal } = {}) {
 }
 
 /**
+ * GET /v1/browser/list?is_local={bool}&page={n}
+ *
+ * Tra ve danh sach profile tu Hidemium (Cloud khi is_local=false, May khi =true).
+ * Response thanh cong: { data: { content: [...] }, links: {...}, meta: {...} }
+ * Response loi:        { type: 'error', title: 'Get browser failed!' }
+ *
+ * @returns {{ ok:boolean, rows?:Array, meta?:object, error?:string }}
+ */
+async function listBrowsers({ isLocal = false, page = 1, baseUrl = DEFAULT_BASE, signal, timeout = 60000 } = {}) {
+  const p = Math.max(1, Number(page) || 1);
+  const url = `${baseUrl}/v1/browser/list?is_local=${isLocal ? 'true' : 'false'}&page=${p}`;
+
+  try {
+    const res = await httpGetJson(url, { signal, timeout });
+    const body = res.body;
+
+    if (!body) return { ok: false, error: 'Response khong phai JSON: ' + String(res.raw).slice(0, 200) };
+    if (body.type === 'error') return { ok: false, error: body.title || 'Get browser failed!' };
+
+    const content = body.data && Array.isArray(body.data.content) ? body.data.content : null;
+    if (!content) return { ok: false, error: 'Response thieu data.content' };
+
+    // Chi giu lai truong can dung cho bang + runner.
+    const rows = content
+      .map((b) => ({ uuid: String(b.uuid || '').trim(), name: String(b.name || '').trim() }))
+      .filter((r) => r.uuid !== '');
+
+    const m = body.meta || {};
+    return {
+      ok: true,
+      rows,
+      meta: {
+        currentPage: Number(m.current_page) || p,
+        lastPage: Number(m.last_page) || 1,
+        perPage: Number(m.per_page) || rows.length,
+        total: Number(m.total) || rows.length,
+      },
+    };
+  } catch (err) {
+    return { ok: false, error: 'Khong goi duoc API: ' + err.message };
+  }
+}
+
+/**
  * GET /openProfile?uuid={uuid}
  * @returns {{ ok:boolean, data?:object, error?:string, raw?:any }}
  */
@@ -84,4 +128,4 @@ async function closeProfile(uuid, { baseUrl = DEFAULT_BASE, timeout = 60000, sig
   }
 }
 
-module.exports = { openProfile, closeProfile, isCloseSuccess, httpGetJson, DEFAULT_BASE };
+module.exports = { listBrowsers, openProfile, closeProfile, isCloseSuccess, httpGetJson, DEFAULT_BASE };
