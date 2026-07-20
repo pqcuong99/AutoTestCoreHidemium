@@ -13,6 +13,12 @@ const { openProfile, closeProfile } = require('../hidemiumApi');
 const { readProfileConfig } = require('../configReader');
 const { buildConfigColumn } = require('../configMapper');
 const { WEBSITES } = require('../../shared/websites');
+const creepjs = require('./creepjs');
+
+/** Site checker theo key — them website moi thi dang ky o day. */
+const SITE_RUNNERS = {
+  [creepjs.key]: creepjs,
+};
 
 /**
  * @param {import('../laneManager').Lane} lane
@@ -77,17 +83,46 @@ async function runProfileCheck(lane, checkKeys, ctx) {
       checkKeys,
     });
 
-    // ---------- 4. Lay gia tri that tu website (chua implement) ----------
-    // TODO: dung web_socket (CDP) mo tab toi tung WEBSITES[i].url, doc gia tri that,
-    //       roi emit { type:'site-result', uuid, checkKey, siteKey, value, pass }.
-    //       Tat ca phai di qua lane.assertOwns(uuid) truoc khi ghi vao lane.ctx.rows.
+    // ---------- 4. Lay gia tri that tu tung website ----------
+    // Site co runner rieng (vd creepjs/) thi goi run(); con lai skipped.
+    // Moi ghi lane.ctx.rows deu qua lane.assertOwns(uuid).
     for (const w of WEBSITES) {
       abortCheck();
       lane.assertOwns(uuid);
-      for (const key of checkKeys) {
-        lane.ctx.rows[key].sites[w.key] = { state: 'skipped', value: '-' };
+
+      const runner = SITE_RUNNERS[w.key];
+      if (!runner) {
+        for (const key of checkKeys) {
+          lane.ctx.rows[key].sites[w.key] = { state: 'skipped', value: '-' };
+        }
+        emit({ type: 'site-done', uuid, siteKey: w.key, state: 'skipped' });
+        continue;
       }
-      emit({ type: 'site-done', uuid, siteKey: w.key, state: 'skipped' });
+
+      const siteResults = await runner.run(checkKeys, {
+        openData: lane.ctx.openData,
+        configMap: lane.ctx.configMap,
+        signal,
+        emit,
+        uuid,
+        step,
+      });
+      lane.assertOwns(uuid);
+
+      for (const key of checkKeys) {
+        const r = siteResults[key] || { state: 'skipped', value: '-' };
+        lane.ctx.rows[key].sites[w.key] = r;
+        emit({
+          type: 'site-result',
+          uuid,
+          checkKey: key,
+          siteKey: w.key,
+          value: r.value,
+          pass: r.pass,
+          state: r.state,
+        });
+      }
+      emit({ type: 'site-done', uuid, siteKey: w.key, state: 'done' });
     }
 
     return { ok: true, status: 'pass', rows: lane.ctx.rows };
