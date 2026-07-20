@@ -12,17 +12,16 @@
   DetailLog.init();
   RunnerUI.init();
 
-  // Sang tab da luu ngay tu dau, khong doi API tra ve.
   ProfileSource.setTabs(State.source);
 
-  // Khoi phuc tick cu; ten profile duoc bu lai khi trang chua no duoc tai.
   const saved = config.selectedUuids || [];
   saved.forEach((uuid) => State.selected.set(uuid, { uuid, name: '' }));
 
-  await ProfileSource.load({ source: State.source, page: 1 });
+  // pruneSelection: bo tick profile da xoa ben Hidemium truoc khi thong bao khoi phuc
+  await ProfileSource.load({ source: State.source, page: 1, pruneSelection: true });
 
-  // Tick cu co the nam o trang khac -> noi ro, tranh nhin badge ma tuong dang loi.
-  if (saved.length) {
-    logLine(`Da khoi phuc ${saved.length} tick tu lan truoc (co the nam o trang khac).`, 'warn');
+  const kept = State.selected.size;
+  if (saved.length && kept) {
+    logLine(t('log.restoredTicks', { n: kept }), 'warn');
   }
 })();

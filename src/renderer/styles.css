@@ -11,6 +11,7 @@
   --danger: #dc2626;
   --ok: #16a34a;
   --warn: #d97706;
+  --topbar-h: 58px;
 }
 
 * { box-sizing: border-box; }
@@ -27,18 +28,35 @@ body {
 }
 
 /* ---------- Topbar ---------- */
+/* z-index cao hon Detail Log -> nut Dung khong bao gio bi che */
 .topbar {
+  position: relative;
+  z-index: 500;
+  flex: none;
   display: flex; align-items: center; justify-content: space-between;
+  min-height: var(--topbar-h);
   padding: 10px 16px; background: var(--bg-2); border-bottom: 1px solid var(--border);
 }
-.brand { display: flex; align-items: center; gap: 12px; }
+.brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .logo {
   width: 34px; height: 34px; border-radius: 9px; background: var(--primary);
   display: grid; place-items: center; font-weight: 700; letter-spacing: .5px;
 }
 .topbar h1 { margin: 0; font-size: 15px; font-weight: 600; }
 .sub { margin: 2px 0 0; font-size: 11px; color: var(--muted); }
-.topbar-actions { display: flex; gap: 8px; }
+.topbar-actions {
+  display: flex; align-items: center; gap: 8px;
+  flex-shrink: 0; position: relative; z-index: 501;
+}
+#btn-stop {
+  flex-shrink: 0;
+  min-width: 88px;
+  justify-content: center;
+}
+#btn-stop:not(:disabled) {
+  opacity: 1;
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, .35);
+}
 
 /* ---------- Buttons ---------- */
 .btn {
@@ -54,6 +72,10 @@ body {
 .btn-ghost { padding: 7px 11px; font-size: 15px; }
 .link { background: none; border: none; color: #60a5fa; cursor: pointer; font-size: 11px; padding: 0 4px; }
 .link:hover { text-decoration: underline; }
+.select {
+  width: 100%; border: 1px solid var(--border); background: var(--bg); color: var(--text);
+  padding: 7px 10px; border-radius: 7px; font-size: 13px;
+}
 
 /* ---------- Source bar (Cloud / Local) ---------- */
 .filebar {

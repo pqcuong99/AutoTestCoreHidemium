@@ -15,7 +15,7 @@ window.DetailLog = (() => {
 
   function pushLog(rec, message, kind) {
     rec.logs.push({
-      time: new Date().toLocaleTimeString('vi-VN', { hour12: false }),
+      time: new Date().toLocaleTimeString(I18n.timeLocale(), { hour12: false }),
       message,
       kind,
     });
@@ -50,7 +50,7 @@ window.DetailLog = (() => {
         r.status = 'running';
         r.statusText = '';
         r.error = '';
-        pushLog(r, `Bat dau tren lane #${evt.laneId}`);
+        pushLog(r, t('detail.started', { laneId: evt.laneId }));
         if (S().follow) DStore.setCurrent(evt.uuid);
         draw.all();
         break;
@@ -102,7 +102,7 @@ window.DetailLog = (() => {
         const r = DStore.record(evt.uuid);
         r.status = evt.status;
         r.statusText = evt.statusText || '';
-        pushLog(r, 'Ket thuc: ' + (evt.statusText || evt.status), evt.status === 'pass' ? 'ok' : 'warn');
+        pushLog(r, t('detail.ended', { status: evt.statusText || evt.status }), evt.status === 'pass' ? 'ok' : 'warn');
         draw.profiles();
         if (S().current === evt.uuid) draw.logs();
         break;
@@ -128,9 +128,12 @@ window.DetailLog = (() => {
         S().lanes = S().lanes.map((l) => ({ ...l, busy: false, uuid: null, name: null }));
         const s = evt.summary;
         S().progress = evt.error
-          ? 'Loi: ' + evt.error
-          : `Xong: PASS ${s?.pass || 0} / FAIL ${s?.fail || 0} / LOI ${s?.error || 0}` +
-            (evt.stopped ? ' (bi dung)' : '');
+          ? t('detail.progressError', { error: evt.error })
+          : t('detail.progressDone', {
+              pass: s?.pass || 0,
+              fail: s?.fail || 0,
+              error: s?.error || 0,
+            }) + (evt.stopped ? t('detail.progressStopped') : '');
         draw.all();
         break;
       }

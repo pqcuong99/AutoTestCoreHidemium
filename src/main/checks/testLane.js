@@ -2,12 +2,9 @@
  * CHE DO TEST LUONG.
  *
  * Moi profile: mo -> doi N giay -> dong.
- * Muc dich: nhin bang mat xem co dung so luong browser mo cung luc = so luong (threads) khong,
- * va moi lane co dong dung profile no da mo khong.
- *
- * Chay tren cung LaneManager voi che do check that -> test cai gi thi that chay cai do.
  */
 const { openProfile, closeProfile } = require('../hidemiumApi');
+const { t } = require('../../shared/i18n');
 
 /** Sleep co the huy giua chung khi bam Dung. */
 function sleep(ms, signal) {
@@ -27,7 +24,7 @@ function sleep(ms, signal) {
 
 /**
  * @param {import('../laneManager').Lane} lane
- * @param {string[]} _checkKeys  khong dung o che do nay
+ * @param {string[]} _checkKeys
  * @param {{ signal:AbortSignal, emit:(e:object)=>void, options:object }} ctx
  */
 async function runProfileCheck(lane, _checkKeys, ctx) {
@@ -37,44 +34,42 @@ async function runProfileCheck(lane, _checkKeys, ctx) {
   const step = (message, kind) => emit({ type: 'log', uuid, message, kind });
 
   const t0 = Date.now();
-  step(`[TEST LUONG] lane #${lane.id} mo ${name || uuid}...`);
+  step(t('check.testOpening', { laneId: lane.id, name: name || uuid }));
 
-  // ---------- Mo ----------
   const opened = await openProfile(uuid, { baseUrl: options.apiBase, signal });
   lane.assertOwns(uuid);
 
   if (!opened.ok) {
     emit({ type: 'profile-error', uuid, stage: 'open', error: opened.error });
-    return { ok: false, status: 'error open profile', error: opened.error, rows: {} };
+    return { ok: false, status: t('err.openProfile'), error: opened.error, rows: {} };
   }
 
   lane.ctx.openData = opened.data;
   emit({ type: 'profile-opened', uuid, data: opened.data });
-  step(`Da mo sau ${Date.now() - t0}ms - port ${opened.data.remote_port}`, 'ok');
+  step(t('check.testOpened', { ms: Date.now() - t0, port: opened.data.remote_port }), 'ok');
 
-  // ---------- Doi ----------
   let closeErr = null;
   try {
-    step(`Giu mo ${waitMs / 1000}s...`);
+    step(t('check.testHold', { sec: waitMs / 1000 }));
     await sleep(waitMs, signal);
     lane.assertOwns(uuid);
   } finally {
-    // Du bi bam Dung giua chung van phai dong profile da mo -> khong bo browser mo coi.
-    step('Dong profile...');
+    step(t('check.closing'));
     const closed = await closeProfile(uuid, { baseUrl: options.apiBase });
     lane.assertOwns(uuid);
 
     if (closed.ok) {
-      step(`Da dong. Tong ${Date.now() - t0}ms`, 'ok');
+      step(t('check.testClosed', { ms: Date.now() - t0 }), 'ok');
+      emit({ type: 'profile-closed', uuid });
     } else {
       closeErr = closed.error;
-      step('Dong that bai: ' + closed.error, 'err');
+      step(t('check.closeFail', { error: closed.error }), 'err');
       emit({ type: 'profile-error', uuid, stage: 'close', error: closed.error });
     }
   }
 
-  if (closeErr) return { ok: false, status: 'error close profile', error: closeErr, rows: {} };
-  return { ok: true, status: 'test ok', rows: {} };
+  if (closeErr) return { ok: false, status: t('err.closeProfile'), error: closeErr, rows: {} };
+  return { ok: true, status: t('err.testOk'), rows: {} };
 }
 
 module.exports = { runProfileCheck };
