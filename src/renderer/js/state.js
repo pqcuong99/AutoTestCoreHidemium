@@ -25,7 +25,7 @@ window.escapeHtml = (s) =>
 /** Ghi log ra footer */
 window.logLine = (msg, kind) => {
   const box = $('#log');
-  const time = new Date().toLocaleTimeString('vi-VN', { hour12: false });
+  const time = new Date().toLocaleTimeString(I18n.timeLocale(), { hour12: false });
   const div = document.createElement('div');
   if (kind) div.className = 'l-' + kind;
   div.textContent = `[${time}] ${msg}`;

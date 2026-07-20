@@ -13,55 +13,59 @@
       <span class="logo">HD</span>
       <div>
         <h1>Auto Test Core Hidemium</h1>
-        <p class="sub">Chon Cloud/Local &rarr; tick profile &rarr; chay check</p>
+        <p class="sub" data-i18n="app.subtitle">Chọn Cloud/Local → tick profile → chạy check</p>
       </div>
     </div>
     <div class="topbar-actions">
-      <button id="btn-run" class="btn btn-primary">&#9654; Chay</button>
-      <button id="btn-test" class="btn" title="Test luong: mo profile -> doi -> dong">
+      <button id="btn-run" class="btn btn-primary">
+        <span aria-hidden="true">&#9654;</span>
+        <span class="i18n-text" data-i18n="btn.run">Chạy</span>
+      </button>
+      <button id="btn-test" class="btn" data-i18n-title="btn.testLane.title" title="Test luồng: mở profile → đợi → đóng">
         <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
           <path fill="currentColor" d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2m1 11h-2V6h2Z"/>
         </svg>
-        <span>Test luong</span>
+        <span class="i18n-text" data-i18n="btn.testLane">Test luồng</span>
       </button>
-      <button id="btn-detail" class="btn" title="Mo man Detail Log">
+      <button id="btn-detail" class="btn" data-i18n-title="btn.detailLog.title" title="Mở màn Detail Log">
         <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
           <path fill="currentColor" d="M3 5h18v2H3V5m0 6h18v2H3v-2m0 6h12v2H3v-2Z"/>
         </svg>
-        <span>Detail Log</span>
+        <span class="i18n-text" data-i18n="btn.detailLog">Detail Log</span>
       </button>
-      <button id="btn-stop" class="btn btn-danger" disabled>&#9632; Dung</button>
+      <button id="btn-stop" class="btn btn-danger" disabled data-i18n-title="btn.stop.title" title="Dừng chạy">
+        <span aria-hidden="true">&#9632;</span>
+        <span class="i18n-text" data-i18n="btn.stop">Dừng</span>
+      </button>
     </div>
   </header>
 
-  <!-- Thanh chon nguon profile -->
   <section class="filebar">
     <div class="source-tabs">
-      <button id="tab-cloud" class="tab" title="Profile tren Cloud (is_local=false)">
+      <button id="tab-cloud" class="tab" data-i18n-title="tab.cloud.title" title="Profile trên Cloud">
         <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
           <path fill="currentColor" d="M6 19a5 5 0 0 1-.5-9.98A6 6 0 0 1 17.7 8.1 4.5 4.5 0 0 1 17.5 19H6Z"/>
         </svg>
-        <span>Cloud</span>
+        <span class="i18n-text" data-i18n="tab.cloud">Cloud</span>
       </button>
-      <button id="tab-local" class="tab" title="Profile tren may (is_local=true)">
+      <button id="tab-local" class="tab" data-i18n-title="tab.local.title" title="Profile trên máy">
         <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
           <path fill="currentColor" d="M4 5h16a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1M2 18h20v2H2z"/>
         </svg>
-        <span>Local</span>
+        <span class="i18n-text" data-i18n="tab.local">Local</span>
       </button>
     </div>
-    <button id="btn-reload" class="btn btn-ghost" title="Tai lai danh sach">&#8635;</button>
+    <button id="btn-reload" class="btn btn-ghost" data-i18n-title="btn.reload.title" title="Tải lại danh sách">&#8635;</button>
     <span id="source-info" class="file-info"></span>
   </section>
 
   <main class="layout">
-    <!-- Bang profile -->
     <section class="panel panel-table">
       <div class="panel-head">
-        <h2>Profiles</h2>
+        <h2 data-i18n="panel.profiles">Profiles</h2>
         <div class="table-tools">
-          <input id="txt-search" class="search" type="text" placeholder="Tim uuid / profile name..." />
-          <label class="mini"><input type="checkbox" id="chk-all" /> Chon tat ca</label>
+          <input id="txt-search" class="search" type="text" data-i18n-placeholder="search.placeholder" placeholder="Tìm uuid / profile name..." />
+          <label class="mini"><input type="checkbox" id="chk-all" /> <span data-i18n="table.selectAll">Chọn tất cả</span></label>
           <span id="sel-count" class="badge">0 / 0</span>
         </div>
       </div>
@@ -70,43 +74,41 @@
           <thead>
             <tr>
               <th class="col-chk"></th>
-              <th class="col-no">#</th>
-              <th>UUID</th>
-              <th>Profile Name</th>
-              <th class="col-status">Trang thai</th>
+              <th class="col-no" data-i18n="table.col.no">#</th>
+              <th data-i18n="table.col.uuid">UUID</th>
+              <th data-i18n="table.col.name">Profile Name</th>
+              <th class="col-status" data-i18n="table.col.status">Trạng thái</th>
             </tr>
           </thead>
           <tbody id="tbody"></tbody>
         </table>
-        <div id="empty" class="empty">Chua co du lieu. Bam Tai lai de goi API.</div>
+        <div id="empty" class="empty" data-i18n="table.empty">Chưa có dữ liệu. Bấm Tải lại để gọi API.</div>
       </div>
       <div id="pager" class="pager"></div>
     </section>
 
-    <!-- Settings -->
     <aside class="panel panel-settings">
-      <div class="panel-head"><h2>Setting</h2></div>
+      <div class="panel-head"><h2 data-i18n="panel.settings">Setting</h2></div>
       <div class="settings-body">
         <div class="field">
-          <label for="num-threads">So luong chay</label>
+          <label for="sel-locale" data-i18n="settings.language">Ngôn ngữ</label>
+          <select id="sel-locale" class="select">
+            <option value="vi">Tiếng Việt</option>
+            <option value="en">English</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="num-threads" data-i18n="settings.threads">Số luồng chạy</label>
           <input id="num-threads" type="number" min="1" max="100" value="5" />
         </div>
 
-        <!--
-          Local API / tu dong dong profile / thoi gian giu mo khi test luong
-          da an khoi giao dien. Van doc duoc tu config.json:
-          %APPDATA%\auto-test-core-hidemium\config.json
-            "apiBase"     : dia chi Local API      (mac dinh http://127.0.0.1:2222)
-            "autoClose"   : tu dong dong profile   (true/false)
-            "testWaitMs"  : Test luong giu mo (ms) (mac dinh 10000)
-        -->
-
         <div class="field">
           <div class="field-head">
-            <label>Cac muc can check</label>
+            <label data-i18n="settings.checks">Các mục cần check</label>
             <div class="link-group">
-              <button id="chk-all-on" class="link">Tat ca</button>
-              <button id="chk-all-off" class="link">Bo het</button>
+              <button id="chk-all-on" class="link" data-i18n="settings.all">Tất cả</button>
+              <button id="chk-all-off" class="link" data-i18n="settings.none">Bỏ hết</button>
             </div>
           </div>
           <div id="check-list" class="check-list"></div>
@@ -115,11 +117,10 @@
     </aside>
   </main>
 
-  <!-- Log + progress -->
   <footer class="footer">
     <div class="progress-row">
       <div class="progress"><div id="progress-bar" class="progress-bar"></div></div>
-      <span id="progress-text" class="progress-text">San sang</span>
+      <span id="progress-text" class="progress-text" data-i18n="status.ready">Sẵn sàng</span>
     </div>
     <div id="log" class="log"></div>
   </footer>
@@ -129,28 +130,28 @@
     <div class="dl-modal">
       <header class="dl-top">
         <div class="dl-title">
-          <strong>Detail Log</strong>
+          <strong data-i18n="detail.title">Detail Log</strong>
           <span id="dl-run" class="badge">runId: -</span>
         </div>
         <div class="dl-top-right">
-          <span id="dl-progress" class="progress-text">San sang</span>
-          <label class="mini"><input type="checkbox" id="dl-follow" checked /> Bam theo luong dang chay</label>
-          <button id="dl-close" class="btn btn-ghost" title="Dong (Esc)">&#10005;</button>
+          <span id="dl-progress" class="progress-text" data-i18n="status.ready">Sẵn sàng</span>
+          <label class="mini"><input type="checkbox" id="dl-follow" checked /> <span data-i18n="detail.follow">Bám theo luồng đang chạy</span></label>
+          <button id="dl-close" class="btn btn-ghost" data-i18n-title="detail.close" title="Đóng (Esc)">&#10005;</button>
         </div>
       </header>
 
       <div class="dl-layout">
         <aside class="dl-side">
-          <div class="dl-side-head">Luong (<span id="dl-lane-count">0</span>)</div>
+          <div class="dl-side-head"><span data-i18n="detail.lanes">Luồng</span> (<span id="dl-lane-count">0</span>)</div>
           <div id="dl-lanes" class="dl-lanes"></div>
-          <div class="dl-side-head">Profile</div>
+          <div class="dl-side-head" data-i18n="detail.profiles">Profile</div>
           <div id="dl-profiles" class="dl-profiles"></div>
         </aside>
 
         <main class="dl-main">
           <div class="dl-main-head">
             <div>
-              <div id="dl-cur-name" class="dl-cur-name">Chua chon profile</div>
+              <div id="dl-cur-name" class="dl-cur-name" data-i18n="detail.noProfile">Chưa chọn profile</div>
               <div id="dl-cur-uuid" class="dl-cur-uuid"></div>
             </div>
             <div id="dl-cur-meta" class="dl-cur-meta"></div>
@@ -161,10 +162,10 @@
               <thead id="dl-thead"></thead>
               <tbody id="dl-tbody"></tbody>
             </table>
-            <div id="dl-empty" class="empty">Chua co du lieu. Tick profile roi bam Chay.</div>
+            <div id="dl-empty" class="empty" data-i18n="detail.empty">Chưa có dữ liệu. Tick profile rồi bấm Chạy.</div>
           </div>
 
-          <div class="dl-log-head">Log cua profile nay</div>
+          <div class="dl-log-head" data-i18n="detail.logHead">Log của profile này</div>
           <div id="dl-log" class="log dl-log"></div>
         </main>
       </div>
@@ -173,6 +174,9 @@
 
   <script src="../shared/checkItems.js"></script>
   <script src="../shared/websites.js"></script>
+  <script src="../shared/i18n/vi.js"></script>
+  <script src="../shared/i18n/en.js"></script>
+  <script src="../shared/i18n/i18n.js"></script>
   <script src="js/detail/store.js"></script>
   <script src="js/detail/render.js"></script>
   <script src="js/detail/detailLog.js"></script>

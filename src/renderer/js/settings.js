@@ -1,9 +1,15 @@
 /**
- * Panel Setting: so luong chay + danh sach muc check.
+ * Panel Setting: ngon ngu + so luong chay + danh sach muc check.
  * Moi thay doi deu duoc luu ngay vao config.json.
  */
 window.Settings = (() => {
-  let cfg = {};   // giu config de doc cac muc da an khoi giao dien
+  let cfg = {};
+
+  function groupLabel(group) {
+    const key = 'checkGroup.' + group;
+    const translated = t(key);
+    return translated === key ? group : translated;
+  }
 
   function renderChecks(checks) {
     const box = $('#check-list');
@@ -12,7 +18,7 @@ window.Settings = (() => {
 
     CHECK_ITEMS.forEach((item) => {
       if (item.group !== lastGroup) {
-        html += `<div class="check-group">${escapeHtml(item.group)}</div>`;
+        html += `<div class="check-group">${escapeHtml(groupLabel(item.group))}</div>`;
         lastGroup = item.group;
       }
       const on = checks[item.key] ? 'checked' : '';
@@ -33,7 +39,6 @@ window.Settings = (() => {
     return Math.max(1, parseInt($('#num-threads').value, 10) || 1);
   }
 
-  /** Da an khoi UI -> lay tu config.json */
   function getTestWaitSec() {
     return Math.max(1, Math.round((cfg.testWaitMs || 10000) / 1000));
   }
@@ -44,10 +49,31 @@ window.Settings = (() => {
     window.api.config.set({ checks });
   }
 
+  function applyLocale(locale) {
+    I18n.setLocale(locale);
+    I18n.applyDom();
+    renderChecks(cfg.checks || {});
+    // Ve lai cac phan JS-generated
+    if (typeof Table !== 'undefined') Table.render();
+    if (typeof DRender !== 'undefined' && DetailLog.isOpen()) DRender.all();
+    const pt = $('#progress-text');
+    if (pt && !State.running) pt.textContent = t('status.ready');
+  }
+
   function init(config) {
     cfg = config || {};
     $('#num-threads').value = config.threads;
-    renderChecks(config.checks || {});
+    const locale = config.locale === 'en' ? 'en' : 'vi';
+    $('#sel-locale').value = locale;
+    applyLocale(locale);
+
+    $('#sel-locale').addEventListener('change', async () => {
+      const next = $('#sel-locale').value === 'en' ? 'en' : 'vi';
+      cfg.locale = next;
+      await window.api.config.set({ locale: next });
+      // Dong bo locale ben main (log check se dung dung ngon ngu)
+      applyLocale(next);
+    });
 
     $('#num-threads').addEventListener('change', () => {
       const v = getThreads();
@@ -67,5 +93,5 @@ window.Settings = (() => {
     });
   }
 
-  return { init, getCheckKeys, getThreads, getTestWaitSec };
+  return { init, getCheckKeys, getThreads, getTestWaitSec, applyLocale };
 })();

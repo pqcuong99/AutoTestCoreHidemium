@@ -4,6 +4,7 @@
  *
  * Muon doi cach lay/hien thi cot B -> chi sua file nay.
  */
+const { t } = require('../shared/i18n');
 
 /**
  * MAPPING: key cua check item -> danh sach { key, label } cua config.
@@ -154,7 +155,7 @@ function resolveCheck(checkKey, configMap) {
   }
 
   const found = fields.length > 0;
-  const value = found ? fields.map((f) => `${f.label}: ${f.value}`).join('\n') : '(khong co trong config)';
+  const value = found ? fields.map((f) => `${f.label}: ${f.value}`).join('\n') : t('err.notInConfig');
   return { value, fields, found };
 }
 

@@ -4,6 +4,7 @@
 const fs = require('fs');
 const path = require('path');
 const { decodeContent } = require('./decode');
+const { t } = require('../shared/i18n');
 
 const CONFIG_FILE_NAME = 'config.hidemium';
 const SO_KY_TU = 7;
@@ -34,11 +35,11 @@ function parseConfigText(text) {
  * @returns {{ ok:boolean, file?:string, map?:object, text?:string, error?:string }}
  */
 function readProfileConfig(profilePath) {
-  if (!profilePath) return { ok: false, error: 'profile_path rong' };
+  if (!profilePath) return { ok: false, error: t('err.emptyPath') };
 
   const file = path.join(profilePath, CONFIG_FILE_NAME);
   if (!fs.existsSync(file)) {
-    return { ok: false, error: 'Khong tim thay ' + CONFIG_FILE_NAME + ' tai ' + profilePath };
+    return { ok: false, error: t('err.noConfigFile') + ': ' + profilePath };
   }
 
   try {
@@ -46,11 +47,11 @@ function readProfileConfig(profilePath) {
     const text = decodeContent(raw, SO_KY_TU);
     const map = parseConfigText(text);
     if (!Object.keys(map).length) {
-      return { ok: false, error: 'Decode ra rong - kiem tra lai so ky tu (' + SO_KY_TU + ')' };
+      return { ok: false, error: t('err.decodeEmpty') + ' (' + SO_KY_TU + ')' };
     }
     return { ok: true, file, map, text };
   } catch (err) {
-    return { ok: false, error: 'Loi doc/decode config: ' + err.message };
+    return { ok: false, error: t('log.error', { error: err.message }) };
   }
 }
 

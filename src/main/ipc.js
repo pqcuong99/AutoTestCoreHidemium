@@ -18,7 +18,14 @@ function register(getWindow) {
 
   // ---- Config ----
   ipcMain.handle('config:get', () => store.load());
-  ipcMain.handle('config:set', (_e, patch) => store.save(patch || {}));
+  ipcMain.handle('config:set', (_e, patch) => {
+    const next = store.save(patch || {});
+    if (patch && patch.locale) {
+      const { setLocale } = require('../shared/i18n');
+      setLocale(patch.locale === 'en' ? 'en' : 'vi');
+    }
+    return next;
+  });
 
   ipcMain.handle('meta:all', () => ({ checkItems: CHECK_ITEMS, websites: WEBSITES }));
 
@@ -74,8 +81,22 @@ function register(getWindow) {
     }
   });
 
-  ipcMain.handle('run:stop', () => ({ ok: true, wasRunning: runner.stop() }));
-  ipcMain.handle('run:status', () => ({ running: runner.isRunning(), lanes: runner.lanes() }));
+  ipcMain.handle('run:stop', async () => {
+    const res = await runner.stop();
+    const openCount = runner.hasOpenProfiles() ? 1 : 0; // hasOpen sau stop
+    broadcast('run:event', {
+      type: 'stop-done',
+      ...res,
+      leftoverOpenCount: openCount,
+      hasOpen: openCount > 0,
+    });
+    return { ok: true, ...res, hasOpen: openCount > 0 };
+  });
+  ipcMain.handle('run:status', () => ({
+    running: runner.isRunning(),
+    lanes: runner.lanes(),
+    hasOpen: runner.hasOpenProfiles(),
+  }));
 }
 
 module.exports = { register };

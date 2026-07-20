@@ -16,14 +16,14 @@ const CHECK_ITEMS = [
   { key: 'model', label: 'Model', group: 'User-Agent Data' },
   { key: 'full_version_list', label: 'FullVersionList', group: 'User-Agent Data' },
   { key: 'form_factors', label: 'FormFactors', group: 'User-Agent Data' },
-  { key: 'battery', label: 'Battery', group: 'He thong' },
-  { key: 'network', label: 'Network', group: 'He thong' },
-  { key: 'font', label: 'Font', group: 'He thong' },
+  { key: 'battery', label: 'Battery', group: 'System' },
+  { key: 'network', label: 'Network', group: 'System' },
+  { key: 'font', label: 'Font', group: 'System' },
   { key: 'webgl', label: 'WebGL', group: 'Graphics' },
   { key: 'webgl_param', label: 'WebGL Param', group: 'Graphics' },
   { key: 'webgpu', label: 'WebGPU', group: 'Graphics' },
-  { key: 'mac_address', label: 'MAC Address', group: 'He thong' },
-  { key: 'desktop_name', label: 'Desktop Name', group: 'He thong' },
+  { key: 'mac_address', label: 'MAC Address', group: 'System' },
+  { key: 'desktop_name', label: 'Desktop Name', group: 'System' },
 ];
 
 const CHECK_KEYS = CHECK_ITEMS.map((i) => i.key);
