@@ -5,11 +5,23 @@
   "main": "src/main/main.js",
   "scripts": {
     "start": "electron .",
-    "dev": "electron . --dev"
+    "dev": "electron . --dev",
+    "build:automation": "vite build --config src/automation/vite.config.js",
+    "docs:nodes": "vite build --config src/automation/docs/vite.docs.config.js && node src/automation/docs/.build/generate.mjs"
   },
   "author": "",
   "license": "MIT",
   "devDependencies": {
-    "electron": "^33.2.0"
+    "@vitejs/plugin-react": "^6.0.3",
+    "electron": "^33.2.0",
+    "vite": "^8.1.5"
+  },
+  "dependencies": {
+    "@xyflow/react": "^12.11.2",
+    "lucide-react": "^1.25.0",
+    "playwright-core": "^1.61.1",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "xlsx": "^0.18.5"
   }
 }

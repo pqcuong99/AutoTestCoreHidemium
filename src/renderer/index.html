@@ -6,6 +6,8 @@
   <title>Auto Test Core Hidemium</title>
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="detailLog.css" />
+  <!-- Man Automation: toan bo CSS da duoc boc trong .automation-root nen khong de len app chinh -->
+  <link rel="stylesheet" href="../automation/dist/automation.css" />
 </head>
 <body>
   <header class="topbar">
@@ -29,6 +31,12 @@
           <path fill="currentColor" d="M3 5h18v2H3V5m0 6h18v2H3v-2m0 6h12v2H3v-2Z"/>
         </svg>
         <span>Detail Log</span>
+      </button>
+      <button id="btn-automation" class="btn" title="Mo man Automation">
+        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+          <path fill="currentColor" d="M4 3h6v4H4V3m0 6h6v4H4V9m0 6h6v6H4v-6m10-9h6v4h-6V6m0 6h6v6h-6v-6m-3-3h3v2h-3V9m0 6h3v2h-3v-2Z"/>
+        </svg>
+        <span>Automation</span>
       </button>
       <button id="btn-stop" class="btn btn-danger" disabled>&#9632; Dung</button>
     </div>
@@ -171,6 +179,11 @@
     </div>
   </div>
 
+  <!-- ============ LOP PHU AUTOMATION ============ -->
+  <!-- React mount vao day o lan bam nut Automation dau tien -->
+  <div id="automation-root" class="automation-root" hidden></div>
+
+  <script src="../automation/dist/automation.js"></script>
   <script src="../shared/checkItems.js"></script>
   <script src="../shared/websites.js"></script>
   <script src="js/detail/store.js"></script>
@@ -180,6 +193,7 @@
   <script src="js/profileSource.js"></script>
   <script src="js/table.js"></script>
   <script src="js/settings.js"></script>
+  <script src="js/automationUI.js"></script>
   <script src="js/runnerUI.js"></script>
   <script src="js/app.js"></script>
 </body>

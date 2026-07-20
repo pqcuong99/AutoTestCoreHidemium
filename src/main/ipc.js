@@ -8,8 +8,11 @@ const runner = require('./runner');
 const { readProfileConfig } = require('./configReader');
 const { CHECK_ITEMS } = require('../shared/checkItems');
 const { WEBSITES } = require('../shared/websites');
+const automation = require('./automation');
 
 function register(getWindow) {
+  automation.register(getWindow);
+
   /** Detail Log gio la overlay trong cua so chinh -> chi can ban toi day. */
   const broadcast = (channel, payload) => {
     const w = getWindow();
