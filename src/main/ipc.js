@@ -1,9 +1,9 @@
 /**
  * Dang ky toan bo IPC handler. Them kenh moi thi them o day.
  */
-const { ipcMain, dialog, shell } = require('electron');
+const { ipcMain, shell } = require('electron');
 const store = require('./store');
-const { readProfiles } = require('./excel');
+const { listBrowsers } = require('./hidemiumApi');
 const runner = require('./runner');
 const { readProfileConfig } = require('./configReader');
 const { CHECK_ITEMS } = require('../shared/checkItems');
@@ -25,31 +25,21 @@ function register(getWindow) {
 
   ipcMain.handle('meta:all', () => ({ checkItems: CHECK_ITEMS, websites: WEBSITES }));
 
-  // ---- File excel ----
-  ipcMain.handle('file:pick', async () => {
-    const { canceled, filePaths } = await dialog.showOpenDialog(getWindow(), {
-      title: 'Chon file Excel / CSV',
-      properties: ['openFile'],
-      filters: [
-        { name: 'Excel / CSV', extensions: ['xlsx', 'xls', 'csv'] },
-        { name: 'Tat ca', extensions: ['*'] },
-      ],
-    });
-    if (canceled || !filePaths.length) return { canceled: true };
-    store.set('excelPath', filePaths[0]);
-    return { canceled: false, filePath: filePaths[0] };
-  });
+  // ---- Danh sach profile (Local API cua Hidemium) ----
+  ipcMain.handle('profiles:list', async (_e, payload) => {
+    const { source, page } = payload || {};
+    const cfg = store.load();
+    const mode = source === 'local' ? 'local' : 'cloud';
 
-  ipcMain.handle('file:read', (_e, filePath) => {
-    const target = filePath || store.get('excelPath');
-    if (!target) return { ok: false, error: 'Chua chon file.' };
-    try {
-      const data = readProfiles(target);
-      store.set('excelPath', target);
-      return { ok: true, filePath: target, ...data };
-    } catch (err) {
-      return { ok: false, error: err.message };
-    }
+    // Nho tab nguoi dung chon (ke ca khi API loi) -> mo app lan sau vao dung tab do.
+    store.set('sourceMode', mode);
+
+    const res = await listBrowsers({
+      isLocal: mode === 'local',
+      page: page || 1,
+      baseUrl: cfg.apiBase,
+    });
+    return { ...res, source: mode };
   });
 
   /** Xem config da decode cua 1 profile bat ky (khong can chay). */

@@ -1,7 +1,7 @@
 {
   "name": "auto-test-core-hidemium",
   "version": "1.0.0",
-  "description": "Auto test core Hidemium - chon file excel, chay check fingerprint theo profile",
+  "description": "Auto test core Hidemium - lay profile tu API, chay check fingerprint theo profile",
   "main": "src/main/main.js",
   "scripts": {
     "start": "electron .",

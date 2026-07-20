@@ -50,7 +50,7 @@ window.DRender = (() => {
     const thead = document.getElementById('dl-thead');
     const siteCols = WEBSITES.map((w) => `<th data-url="${esc(w.url)}" class="col-site">${esc(w.label)}</th>`).join('');
     thead.innerHTML = `<tr>
-      <th class="col-a">Muc check</th>
+      <th class="col-a">Mục Check</th>
       <th class="col-b">Config (config.hidemium)</th>
       ${siteCols}
     </tr>`;

@@ -3,8 +3,11 @@
  */
 window.State = {
   config: null,          // config luu tu main
-  rows: [],              // toan bo profile doc tu file
-  selected: new Set(),   // uuid dang tick
+  rows: [],              // profile cua TRANG dang xem
+  selected: new Map(),   // uuid -> { uuid, name }; giu nguyen khi doi trang
+  source: 'cloud',       // tab dang chon: 'cloud' | 'local'
+  page: 1,               // trang dang xem
+  meta: { currentPage: 1, lastPage: 1, total: 0 },
   status: {},            // uuid -> 'idle' | 'running' | 'pass' | 'fail' | 'error' | 'stopped'
   statusText: {},        // uuid -> mo ta chi tiet, vd 'error open profile'
   filter: '',

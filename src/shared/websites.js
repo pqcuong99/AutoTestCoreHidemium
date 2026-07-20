@@ -7,6 +7,7 @@ const WEBSITES = [
   { key: 'iphey', label: 'iphey.com', url: 'https://iphey.com/' },
   { key: 'browserleaks', label: 'browserleaks', url: 'https://browserleaks.com/javascript' },
   { key: 'creepjs', label: 'creepjs', url: 'https://abrahamjuliot.github.io/creepjs/' },
+  { key: 'browserscan', label: 'browserscan.net', url: 'https://www.browserscan.net/' },
 ];
 
 const WEBSITE_KEYS = WEBSITES.map((w) => w.key);

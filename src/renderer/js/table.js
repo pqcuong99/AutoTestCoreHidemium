@@ -43,7 +43,8 @@ window.Table = (() => {
   }
 
   function updateCount() {
-    $('#sel-count').textContent = `${State.selected.size} / ${State.rows.length}`;
+    // Tick giu nguyen khi doi trang -> mau so la tong tat ca trang, khong phai trang nay.
+    $('#sel-count').textContent = `${State.selected.size} / ${State.meta.total || State.rows.length}`;
     const vis = visibleRows();
     const all = vis.length > 0 && vis.every((r) => State.selected.has(r.uuid));
     $('#chk-all').checked = all;
@@ -62,7 +63,13 @@ window.Table = (() => {
   }
 
   function persistSelection() {
-    window.api.config.set({ selectedUuids: Array.from(State.selected) });
+    window.api.config.set({ selectedUuids: Array.from(State.selected.keys()) });
+  }
+
+  /** Luu ca name de van chay duoc profile da tick o trang khac. */
+  function toggle(row, on) {
+    if (on) State.selected.set(row.uuid, { uuid: row.uuid, name: row.name });
+    else State.selected.delete(row.uuid);
   }
 
   function init() {
@@ -70,15 +77,17 @@ window.Table = (() => {
     $('#tbody').addEventListener('change', (e) => {
       if (!e.target.classList.contains('row-chk')) return;
       const uuid = e.target.closest('tr').dataset.uuid;
-      e.target.checked ? State.selected.add(uuid) : State.selected.delete(uuid);
+      const row = State.rows.find((r) => r.uuid === uuid);
+      if (!row) return;
+      toggle(row, e.target.checked);
       updateCount();
       persistSelection();
     });
 
-    // Chon tat ca (theo ket qua dang loc)
+    // Chon tat ca (theo ket qua dang loc, trong trang dang xem)
     $('#chk-all').addEventListener('change', (e) => {
       const on = e.target.checked;
-      visibleRows().forEach((r) => (on ? State.selected.add(r.uuid) : State.selected.delete(r.uuid)));
+      visibleRows().forEach((r) => toggle(r, on));
       render();
       persistSelection();
     });
@@ -94,8 +103,9 @@ window.Table = (() => {
     });
   }
 
+  /** Tat ca profile da tick - ke ca o trang dang khong hien tren man hinh. */
   function selectedProfiles() {
-    return State.rows.filter((r) => State.selected.has(r.uuid));
+    return Array.from(State.selected.values());
   }
 
   function resetStatus() {
@@ -104,5 +114,5 @@ window.Table = (() => {
     render();
   }
 
-  return { init, render, setStatus, selectedProfiles, resetStatus, updateCount };
+  return { init, render, setStatus, selectedProfiles, resetStatus, updateCount, persistSelection };
 })();

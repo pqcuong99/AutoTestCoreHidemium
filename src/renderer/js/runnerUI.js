@@ -9,7 +9,8 @@ window.RunnerUI = (() => {
     $('#btn-run').disabled = on;
     $('#btn-test').disabled = on;
     $('#btn-stop').disabled = !on;
-    $('#btn-pick').disabled = on;
+    $('#tab-cloud').disabled = on;
+    $('#tab-local').disabled = on;
     $('#btn-reload').disabled = on;
   }
 
