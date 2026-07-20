@@ -25,7 +25,7 @@ const I18N_VI = {
   'table.col.name': 'Profile Name',
   'table.col.status': 'Trạng thái',
   'table.empty': 'Chưa có dữ liệu. Bấm Tải lại để gọi API.',
-  'settings.threads': 'Số lượng chạy',
+  'settings.threads': 'Số luồng chạy',
   'settings.checks': 'Các mục cần check',
   'settings.all': 'Tất cả',
   'settings.none': 'Bỏ hết',

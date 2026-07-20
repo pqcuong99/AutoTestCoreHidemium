@@ -38,8 +38,11 @@ window.DStore = (() => {
   function reset(runId, profiles, checkKeys) {
     state.runId = runId;
     state.checkKeys = checkKeys || [];
+    state.lanes = [];
     state.order = [];
     state.records = new Map();
+    state.running = false;
+    state.mode = 'check';
     state.progress = typeof t === 'function' ? t('status.ready') : '';
     (profiles || []).forEach((p) => {
       state.order.push(p.uuid);
@@ -48,9 +51,14 @@ window.DStore = (() => {
     state.current = state.order[0] || null;
   }
 
-  /** Chi nhan su kien cua lan chay hien tai. */
+  /**
+   * Chi nhan su kien cua lan chay hien tai.
+   * Rieng 'start' luon chap nhan — neu filter theo runId cu thi lan chay moi
+   * bi bo, Detail Log khong reset (van hien 2 profile sau khi chon 5).
+   */
   function accepts(evt) {
     if (!evt || typeof evt.runId !== 'number') return true; // su kien khong gan runId (finish loi)
+    if (evt.type === 'start') return true;
     if (state.runId === 0) return true;
     return evt.runId === state.runId;
   }
