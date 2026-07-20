@@ -1,8 +1,9 @@
 /**
  * Nguon profile: goi Local API cua Hidemium thay vi doc file Excel/CSV.
  *
- *   Cloud -> GET /v1/browser/list?is_local=false&page=N
- *   Local -> GET /v1/browser/list?is_local=true&page=N
+ *   Cloud -> POST /v1/browser/list?is_local=false  body { page, limit, search }
+ *   Local -> POST /v1/browser/list?is_local=true   body { page, limit, search }
+ *   (Local khong chap nhan GET — se tra Get browser failed!)
  *
  * Tab dang chon duoc luu vao config (sourceMode) -> mo app lan sau vao dung tab cu.
  */
