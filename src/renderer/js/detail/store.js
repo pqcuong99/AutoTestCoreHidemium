@@ -18,7 +18,7 @@ window.DStore = (() => {
     checkKeys: [],
     follow: true,              // tu nhay sang profile vua bat dau chay
     mode: 'check',
-    progress: 'San sang',      // giu lai de mo popup giua chung van thay
+    progress: '',              // set qua t('status.ready') khi reset / apply locale
   };
 
   function blankRecord(uuid, name) {
@@ -40,6 +40,7 @@ window.DStore = (() => {
     state.checkKeys = checkKeys || [];
     state.order = [];
     state.records = new Map();
+    state.progress = typeof t === 'function' ? t('status.ready') : '';
     (profiles || []).forEach((p) => {
       state.order.push(p.uuid);
       state.records.set(p.uuid, blankRecord(p.uuid, p.name));

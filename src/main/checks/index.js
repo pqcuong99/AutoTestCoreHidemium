@@ -13,6 +13,7 @@ const { openProfile, closeProfile } = require('../hidemiumApi');
 const { readProfileConfig } = require('../configReader');
 const { buildConfigColumn } = require('../configMapper');
 const { WEBSITES } = require('../../shared/websites');
+const { t } = require('../../shared/i18n');
 
 /**
  * @param {import('../laneManager').Lane} lane
@@ -30,18 +31,18 @@ async function runProfileCheck(lane, checkKeys, ctx) {
 
   // ---------- 1. Mo profile ----------
   abortCheck();
-  step(`Mo profile ${name || uuid}...`);
+  step(t('check.opening', { name: name || uuid }));
   const opened = await openProfile(uuid, { baseUrl: options.apiBase, signal });
   lane.assertOwns(uuid);
 
   if (!opened.ok) {
     emit({ type: 'profile-error', uuid, stage: 'open', error: opened.error });
-    return { ok: false, status: 'error open profile', error: opened.error, rows: {} };
+    return { ok: false, status: t('err.openProfile'), error: opened.error, rows: {} };
   }
 
   lane.ctx.openData = opened.data;
   emit({ type: 'profile-opened', uuid, data: opened.data });
-  step(`Da mo. port=${opened.data.remote_port} path=${opened.data.profile_path}`, 'ok');
+  step(t('check.opened', { port: opened.data.remote_port, path: opened.data.profile_path }), 'ok');
 
   try {
     // ---------- 2. Doc + decode config ----------
@@ -51,11 +52,11 @@ async function runProfileCheck(lane, checkKeys, ctx) {
 
     if (!cfg.ok) {
       emit({ type: 'profile-error', uuid, stage: 'config', error: cfg.error });
-      return { ok: false, status: 'error read config', error: cfg.error, rows: {} };
+      return { ok: false, status: t('err.readConfig'), error: cfg.error, rows: {} };
     }
 
     lane.ctx.configMap = cfg.map;
-    step(`Decode config OK (${Object.keys(cfg.map).length} key)`, 'ok');
+    step(t('check.decodeOk', { n: Object.keys(cfg.map).length }), 'ok');
 
     // ---------- 3. Cot B ----------
     abortCheck();
@@ -90,11 +91,15 @@ async function runProfileCheck(lane, checkKeys, ctx) {
       emit({ type: 'site-done', uuid, siteKey: w.key, state: 'skipped' });
     }
 
-    return { ok: true, status: 'pass', rows: lane.ctx.rows };
+    return { ok: true, status: t('err.pass'), rows: lane.ctx.rows };
   } finally {
-    if (options.autoClose) {
-      step('Dong profile...');
-      await closeProfile(uuid, { baseUrl: options.apiBase });
+    // Dong khi: autoClose bat, HOAC bi bam Dung (abort) — tranh bo browser mo coi.
+    const shouldClose = options.autoClose || signal.aborted;
+    if (shouldClose) {
+      step(t('check.closing'));
+      const closed = await closeProfile(uuid, { baseUrl: options.apiBase });
+      if (closed.ok) emit({ type: 'profile-closed', uuid });
+      else step(t('check.closeFail', { error: closed.error }), 'err');
     }
   }
 }

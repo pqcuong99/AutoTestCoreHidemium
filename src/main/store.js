@@ -15,6 +15,7 @@ const DEFAULTS = {
   apiBase: 'http://127.0.0.1:2222',  // Local API cua Hidemium
   autoClose: false,       // tu goi /closeProfile sau khi check xong
   testWaitMs: 10000,      // che do Test luong: giu profile mo bao lau truoc khi dong
+  locale: 'vi',           // 'vi' | 'en'
 };
 
 let cachePath = null;

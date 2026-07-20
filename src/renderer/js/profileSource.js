@@ -1,10 +1,8 @@
 /**
- * Nguon profile: goi Local API cua Hidemium thay vi doc file Excel/CSV.
+ * Nguon profile: goi Local API cua Hidemium.
  *
- *   Cloud -> GET /v1/browser/list?is_local=false&page=N
- *   Local -> GET /v1/browser/list?is_local=true&page=N
- *
- * Tab dang chon duoc luu vao config (sourceMode) -> mo app lan sau vao dung tab cu.
+ * Khi reload / mo app: quet toan bo trang de bo tick UUID da bi xoa ben Hidemium
+ * (tranh bam Chay van mo profile chet -> loi "mo profile" tren Detail Log).
  */
 window.ProfileSource = (() => {
   let loading = false;
@@ -18,29 +16,69 @@ window.ProfileSource = (() => {
 
   function setLoading(on) {
     loading = on;
-    $('#btn-reload').disabled = on;
-    $('#source-info').textContent = on ? 'Dang tai...' : $('#source-info').textContent;
+    $('#btn-reload').disabled = on || State.running;
+    if (on) $('#source-info').textContent = t('log.loading');
+  }
+
+  /**
+   * Doi chieu State.selected voi danh sach that tu API (moi trang).
+   * @returns {number} so tick da bo vi khong con ton tai
+   */
+  async function pruneMissingSelections(source = State.source) {
+    const wanted = Array.from(State.selected.keys());
+    if (!wanted.length) return 0;
+
+    const wantedSet = new Set(wanted);
+    const found = new Map(); // uuid -> { uuid, name }
+    let page = 1;
+    let lastPage = 1;
+
+    while (page <= lastPage) {
+      const res = await window.api.profiles.list({ source, page });
+      if (!res.ok) break;
+      lastPage = Math.max(1, res.meta?.lastPage || 1);
+      for (const r of res.rows || []) {
+        if (wantedSet.has(r.uuid)) found.set(r.uuid, { uuid: r.uuid, name: r.name });
+      }
+      if (found.size === wantedSet.size) break;
+      page++;
+    }
+
+    let removed = 0;
+    for (const uuid of wanted) {
+      if (found.has(uuid)) {
+        State.selected.set(uuid, found.get(uuid));
+      } else {
+        State.selected.delete(uuid);
+        delete State.status[uuid];
+        delete State.statusText[uuid];
+        removed++;
+      }
+    }
+
+    if (removed) Table.persistSelection();
+    return removed;
   }
 
   /**
    * Tai 1 trang profile.
-   * @param {{source?:string, page?:number, silent?:boolean}} opts
+   * @param {{source?:string, page?:number, silent?:boolean, pruneSelection?:boolean}} opts
+   *   pruneSelection: true khi reload / bootstrap — bo tick profile da xoa
    */
-  async function load({ source = State.source, page = 1, silent = false } = {}) {
+  async function load({ source = State.source, page = 1, silent = false, pruneSelection = false } = {}) {
     if (loading || State.running) return false;
     setLoading(true);
 
     const res = await window.api.profiles.list({ source, page });
-    setLoading(false);
 
     if (!res.ok) {
-      // Van giu tab dang chon sang - loi API khong lam doi tab.
+      setLoading(false);
       State.rows = [];
       State.meta = { currentPage: 1, lastPage: 1, total: 0 };
-      $('#source-info').textContent = `Khong tai duoc (${LABEL[source]})`;
+      $('#source-info').textContent = t('log.loadFailInfo', { source: LABEL[source] });
       Table.render();
       renderPager();
-      if (!silent) logLine(`Loi tai profile (${LABEL[source]}): ${res.error}`, 'err');
+      if (!silent) logLine(t('log.loadFail', { source: LABEL[source], error: res.error }), 'err');
       return false;
     }
 
@@ -51,29 +89,46 @@ window.ProfileSource = (() => {
     State.status = {};
     State.statusText = {};
 
-    // Tick khoi phuc tu config chua co ten -> bu lai khi trang chua no duoc tai.
     res.rows.forEach((r) => {
       if (State.selected.has(r.uuid)) State.selected.set(r.uuid, { uuid: r.uuid, name: r.name });
     });
 
+    let pruned = 0;
+    if (pruneSelection && State.selected.size) {
+      pruned = await pruneMissingSelections(State.source);
+    }
+
+    setLoading(false);
     setTabs(State.source);
-    $('#source-info').textContent =
-      `${res.meta.total} profile - trang ${res.meta.currentPage}/${res.meta.lastPage}`;
+    $('#source-info').textContent = t('log.loadedInfo', {
+      total: res.meta.total,
+      page: res.meta.currentPage,
+      last: res.meta.lastPage,
+    });
 
     Table.render();
+    Table.updateCount();
     renderPager();
-    logLine(
-      `Da tai ${res.rows.length} profile (${LABEL[State.source]}) - trang ${res.meta.currentPage}/${res.meta.lastPage}.`,
-      'ok'
-    );
+    if (!silent) {
+      logLine(
+        t('log.loaded', {
+          n: res.rows.length,
+          source: LABEL[State.source],
+          page: res.meta.currentPage,
+          last: res.meta.lastPage,
+        }),
+        'ok'
+      );
+      if (pruned > 0) {
+        logLine(t('log.prunedSelection', { n: pruned }), 'warn');
+      }
+    }
     return true;
   }
 
-  /** Doi tab -> luon ve trang 1 va bo tick cu (danh sach khac hoan toan). */
   async function switchSource(source) {
     if (source === State.source || loading || State.running) return;
 
-    // Sang tab ngay khi bam: nguoi dung phai thay minh dang o dau, ke ca khi API loi.
     State.source = source;
     State.page = 1;
     setTabs(source);
@@ -83,7 +138,6 @@ window.ProfileSource = (() => {
     await load({ source, page: 1 });
   }
 
-  /** Cac so trang can hien: luon co 1 va last, cong cua so quanh trang hien tai. */
   function pageNumbers(current, last) {
     const out = new Set([1, last]);
     for (let p = current - 2; p <= current + 2; p++) {
@@ -113,10 +167,23 @@ window.ProfileSource = (() => {
     box.innerHTML = html;
   }
 
+  /** Go tick 1 uuid (vd khi open profile that bai / profile da xoa). */
+  function unselect(uuid) {
+    if (!uuid || !State.selected.has(uuid)) return false;
+    State.selected.delete(uuid);
+    Table.persistSelection();
+    Table.updateCount();
+    Table.render();
+    return true;
+  }
+
   function init() {
     $('#tab-cloud').addEventListener('click', () => switchSource('cloud'));
     $('#tab-local').addEventListener('click', () => switchSource('local'));
-    $('#btn-reload').addEventListener('click', () => load({ page: State.page }));
+    // Reload: luon prune tick chet
+    $('#btn-reload').addEventListener('click', () =>
+      load({ page: State.page, pruneSelection: true })
+    );
 
     $('#pager').addEventListener('click', (e) => {
       const btn = e.target.closest('.pg');
@@ -126,5 +193,5 @@ window.ProfileSource = (() => {
     });
   }
 
-  return { init, load, setTabs, renderPager };
+  return { init, load, setTabs, renderPager, pruneMissingSelections, unselect };
 })();

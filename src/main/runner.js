@@ -6,8 +6,11 @@
  *  - Worker i CHI dung lane i tu dau den cuoi -> khong co chuyen 2 profile chung 1 lane.
  *  - Moi su kien phat ra deu duoc bo sung { runId, laneId, seq } tai day (1 cho duy nhat).
  *  - runId tang moi lan bam Chay -> renderer bo qua su kien cua lan chay cu.
+ *  - Theo doi profile dang mo: bam Dung (ke ca sau khi check xong) se dong het.
  */
 const { LaneManager } = require('./laneManager');
+const { closeProfile } = require('./hidemiumApi');
+const { t } = require('../shared/i18n');
 
 /** Cac che do chay. Them che do moi -> them 1 dong o day. */
 const PIPELINES = {
@@ -21,6 +24,9 @@ class Runner {
     this.controller = null;
     this.manager = null;
     this.runId = 0;
+    /** @type {Set<string>} uuid profile con dang mo (autoClose=false) */
+    this.opened = new Set();
+    this.apiBase = '';
   }
 
   /**
@@ -34,16 +40,20 @@ class Runner {
   async start({ profiles, checkKeys, threads, options = {} }, onEvent) {
     const mode = options.mode || 'check';
     const runProfileCheck = PIPELINES[mode];
-    if (!runProfileCheck) throw new Error('Che do khong hop le: ' + mode);
+    if (!runProfileCheck) throw new Error(t('err.invalidMode', { mode }));
 
-    if (this.running) throw new Error('Dang chay roi - bam Dung truoc da.');
-    if (!profiles?.length) throw new Error('Chua chon profile nao.');
-    if (mode === 'check' && !checkKeys?.length) throw new Error('Chua chon muc check nao.');
+    if (this.running) throw new Error(t('err.alreadyRunning'));
+    if (!profiles?.length) throw new Error(t('err.noProfile'));
+    if (mode === 'check' && !checkKeys?.length) throw new Error(t('err.noChecks'));
+
+    // Lan chay moi: dong so profile con sot tu lan truoc (neu co).
+    if (this.opened.size) await this.closeOpened(options.apiBase);
 
     const runId = ++this.runId;
     this.running = true;
     this.controller = new AbortController();
     const signal = this.controller.signal;
+    this.apiBase = options.apiBase || '';
 
     const concurrency = Math.max(1, Math.min(Number(threads) || 1, profiles.length));
     const manager = new LaneManager(runId, concurrency);
@@ -53,11 +63,15 @@ class Runner {
     const summary = { total: profiles.length, pass: 0, fail: 0, error: 0, stopped: 0 };
     let done = 0;
 
-    // Cho duy nhat phat su kien -> moi event chac chan co du runId/laneId/seq.
-    const emitFrom = (lane) => (evt) =>
+    const emitFrom = (lane) => (evt) => {
+      this._trackOpen(evt);
       onEvent({ ...evt, runId, laneId: lane.id, seq: manager.nextSeq() });
+    };
 
-    const emitGlobal = (evt) => onEvent({ ...evt, runId, seq: manager.nextSeq() });
+    const emitGlobal = (evt) => {
+      this._trackOpen(evt);
+      onEvent({ ...evt, runId, seq: manager.nextSeq() });
+    };
 
     emitGlobal({
       type: 'start',
@@ -82,7 +96,7 @@ class Runner {
         let statusText = '';
         try {
           const res = await runProfileCheck(lane, checkKeys, { signal, emit, options });
-          lane.assertOwns(profile.uuid); // chot chan cuoi cung truoc khi ghi ket qua
+          lane.assertOwns(profile.uuid);
           status = res.ok ? 'pass' : 'fail';
           statusText = res.status || '';
           if (res.ok) summary.pass++;
@@ -97,7 +111,7 @@ class Runner {
           } else {
             status = 'error';
             summary.error++;
-            emit({ type: 'log', uuid: profile.uuid, message: 'LOI: ' + err.message, kind: 'err' });
+            emit({ type: 'log', uuid: profile.uuid, message: t('err.prefix', { message: err.message }), kind: 'err' });
           }
         } finally {
           emit({ type: 'profile-done', uuid: profile.uuid, status, statusText });
@@ -111,24 +125,70 @@ class Runner {
 
     await Promise.all(manager.lanes.map((lane) => worker(lane)));
 
+    // Neu bi Dung giua chung -> dong het browser con mo.
+    if (signal.aborted && this.opened.size) {
+      await this.closeOpened(options.apiBase, emitGlobal);
+    }
+
     manager.releaseAll();
     const stopped = signal.aborted;
     this.running = false;
     this.controller = null;
     this.manager = null;
 
-    emitGlobal({ type: 'finish', summary, stopped });
+    const leftoverOpen = [...this.opened];
+    emitGlobal({
+      type: 'finish',
+      summary,
+      stopped,
+      leftoverOpen,
+      leftoverOpenCount: leftoverOpen.length,
+    });
     return summary;
   }
 
-  stop() {
-    const was = this.running;
+  _trackOpen(evt) {
+    if (evt.type === 'profile-opened' && evt.uuid) this.opened.add(evt.uuid);
+    if (evt.type === 'profile-closed' && evt.uuid) this.opened.delete(evt.uuid);
+  }
+
+  /**
+   * Dong tat ca profile dang mo. Dung khi bam Dung / bat dau lan chay moi.
+   */
+  async closeOpened(apiBase = this.apiBase, emit) {
+    const list = [...this.opened];
+    for (const uuid of list) {
+      try {
+        await closeProfile(uuid, { baseUrl: apiBase });
+      } catch (_) {
+        /* ignore */
+      }
+      this.opened.delete(uuid);
+      if (emit) emit({ type: 'profile-closed', uuid });
+    }
+    return list.length;
+  }
+
+  /**
+   * Bam Dung: huy hang doi dang chay + dong profile con mo (ke ca sau khi check xong).
+   */
+  async stop() {
+    const wasRunning = this.running;
     if (this.controller) this.controller.abort();
-    return was;
+    // Neu khong con running (check xong, browser con mo) -> dong ngay.
+    if (!wasRunning && this.opened.size) {
+      const n = await this.closeOpened();
+      return { wasRunning, closed: n };
+    }
+    return { wasRunning, closed: 0 };
   }
 
   isRunning() {
     return this.running;
+  }
+
+  hasOpenProfiles() {
+    return this.opened.size > 0;
   }
 
   lanes() {

@@ -1,6 +1,8 @@
 const path = require('path');
 const { app, BrowserWindow, shell } = require('electron');
 const ipc = require('./ipc');
+const store = require('./store');
+const { setLocale } = require('../shared/i18n');
 
 let mainWindow = null;
 const isDev = process.argv.includes('--dev');
@@ -35,6 +37,7 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  setLocale(store.load().locale === 'en' ? 'en' : 'vi');
   ipc.register(() => mainWindow);
   createWindow();
 

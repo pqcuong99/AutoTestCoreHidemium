@@ -2,6 +2,7 @@
  * Client goi Local API cua Hidemium (mac dinh http://127.0.0.1:2222).
  */
 const http = require('http');
+const { t } = require('../shared/i18n');
 
 const DEFAULT_BASE = 'http://127.0.0.1:2222';
 const DEFAULT_TIMEOUT = 120000;
@@ -71,7 +72,7 @@ async function listBrowsers({ isLocal = false, page = 1, baseUrl = DEFAULT_BASE,
       },
     };
   } catch (err) {
-    return { ok: false, error: 'Khong goi duoc API: ' + err.message };
+    return { ok: false, error: t('err.apiUnreachable', { url: baseUrl, error: err.message }) };
   }
 }
 
@@ -85,16 +86,16 @@ async function openProfile(uuid, { baseUrl = DEFAULT_BASE, signal, timeout } = {
     const res = await httpGetJson(url, { signal, timeout });
     const body = res.body;
 
-    if (!body) return { ok: false, error: 'Response khong phai JSON: ' + String(res.raw).slice(0, 200) };
+    if (!body) return { ok: false, error: t('err.apiJson') + ': ' + String(res.raw).slice(0, 200) };
     if (body.status !== 'successfully') {
-      return { ok: false, error: body.message || body.status || 'error open profile', raw: body };
+      return { ok: false, error: body.message || body.status || t('err.openProfile'), raw: body };
     }
     if (!body.data || !body.data.profile_path) {
       return { ok: false, error: 'Response thieu data.profile_path', raw: body };
     }
     return { ok: true, data: body.data, raw: body };
   } catch (err) {
-    return { ok: false, error: 'Khong goi duoc API: ' + err.message };
+    return { ok: false, error: t('err.apiUnreachable', { url, error: err.message }) };
   }
 }
 
@@ -118,13 +119,13 @@ async function closeProfile(uuid, { baseUrl = DEFAULT_BASE, timeout = 60000, sig
   const url = `${baseUrl}/closeProfile?uuid=${encodeURIComponent(uuid)}`;
   try {
     const res = await httpGetJson(url, { timeout, signal });
-    if (!res.body) return { ok: false, error: 'Response khong phai JSON: ' + String(res.raw).slice(0, 200) };
+    if (!res.body) return { ok: false, error: t('err.apiJson') + ': ' + String(res.raw).slice(0, 200) };
     if (!isCloseSuccess(res.body)) {
-      return { ok: false, error: 'closeProfile that bai: ' + JSON.stringify(res.body).slice(0, 200), raw: res.body };
+      return { ok: false, error: t('err.closeProfile') + ': ' + JSON.stringify(res.body).slice(0, 200), raw: res.body };
     }
     return { ok: true, message: res.body.message || '', raw: res.body };
   } catch (err) {
-    return { ok: false, error: 'Khong goi duoc API: ' + err.message };
+    return { ok: false, error: t('err.apiUnreachable', { url, error: err.message }) };
   }
 }
 
