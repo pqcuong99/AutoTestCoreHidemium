@@ -15,10 +15,12 @@ const { buildConfigColumn } = require('../configMapper');
 const { WEBSITES } = require('../../shared/websites');
 const { t } = require('../../shared/i18n');
 const creepjs = require('./creepjs');
+const browserleaks = require('./browserleaks');
 
 /** Site checker theo key — them website moi thi dang ky o day. */
 const SITE_RUNNERS = {
   [creepjs.key]: creepjs,
+  [browserleaks.key]: browserleaks,
 };
 
 /**
@@ -94,9 +96,19 @@ async function runProfileCheck(lane, checkKeys, ctx) {
       const runner = SITE_RUNNERS[w.key];
       if (!runner) {
         for (const key of checkKeys) {
-          lane.ctx.rows[key].sites[w.key] = { state: 'skipped', value: '-' };
+          const r = { state: 'skipped', value: '-', pass: false };
+          lane.ctx.rows[key].sites[w.key] = r;
+          emit({
+            type: 'site-result',
+            uuid,
+            checkKey: key,
+            siteKey: w.key,
+            value: r.value,
+            pass: false,
+            state: 'skipped',
+          });
         }
-        emit({ type: 'site-done', uuid, siteKey: w.key, state: 'skipped' });
+        emit({ type: 'site-done', uuid, siteKey: w.key });
         continue;
       }
 
@@ -123,7 +135,7 @@ async function runProfileCheck(lane, checkKeys, ctx) {
           state: r.state,
         });
       }
-      emit({ type: 'site-done', uuid, siteKey: w.key, state: 'done' });
+      emit({ type: 'site-done', uuid, siteKey: w.key });
     }
 
     return { ok: true, status: t('err.pass'), rows: lane.ctx.rows };

@@ -74,11 +74,24 @@ window.DetailLog = (() => {
         break;
       }
 
-      case 'site-done': {
+      case 'site-result': {
+        // Cap nhat tung o: value that tu scrape + pass/fail
         const r = DStore.record(evt.uuid);
-        Object.values(r.rows).forEach((row) => {
-          if (row.sites && row.sites[evt.siteKey]) row.sites[evt.siteKey].state = evt.state;
-        });
+        if (!r.rows[evt.checkKey]) {
+          r.rows[evt.checkKey] = { config: null, sites: {} };
+        }
+        if (!r.rows[evt.checkKey].sites) r.rows[evt.checkKey].sites = {};
+        r.rows[evt.checkKey].sites[evt.siteKey] = {
+          state: evt.state || (evt.pass ? 'pass' : 'fail'),
+          value: evt.value ?? '',
+          pass: !!evt.pass,
+        };
+        if (S().current === evt.uuid) draw.table();
+        break;
+      }
+
+      case 'site-done': {
+        // Chi ve lai — KHONG ghi de state='done' (se mat value/pass/fail)
         if (S().current === evt.uuid) draw.table();
         break;
       }
@@ -193,12 +206,14 @@ window.DetailLog = (() => {
       if (row) tr.querySelector('.cell-b').innerHTML = DRender.fieldsHtmlAll(row.config);
     });
 
-    // Bam header cot website -> mo web that
+    // Bam header cot website -> mo web that (bo qua khi bam thanh resize)
     document.getElementById('dl-thead').addEventListener('click', (e) => {
+      if (e.target.closest('.dl-col-resizer')) return;
       const th = e.target.closest('th[data-url]');
       if (th) window.api.shell.openExternal(th.dataset.url);
     });
 
+    if (window.DTableResize) DTableResize.init();
     DRender.head();
   }
 

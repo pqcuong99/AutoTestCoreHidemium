@@ -26,6 +26,8 @@ const I18N_EN = {
   'table.col.status': 'Status',
   'table.empty': 'No data. Click Reload to call the API.',
   'settings.threads': 'Concurrency',
+  'settings.autoClose': 'Auto-close profile when test done',
+  'settings.autoClose.hint': 'On: close browser after each profile. Off: keep open for manual review.',
   'settings.checks': 'Items to check',
   'settings.all': 'All',
   'settings.none': 'None',

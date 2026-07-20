@@ -26,6 +26,8 @@ const I18N_VI = {
   'table.col.status': 'Trạng thái',
   'table.empty': 'Chưa có dữ liệu. Bấm Tải lại để gọi API.',
   'settings.threads': 'Số luồng chạy',
+  'settings.autoClose': 'Tự đóng profile khi test xong',
+  'settings.autoClose.hint': 'Bật: đóng browser sau mỗi profile. Tắt: giữ mở để xem tay.',
   'settings.checks': 'Các mục cần check',
   'settings.all': 'Tất cả',
   'settings.none': 'Bỏ hết',

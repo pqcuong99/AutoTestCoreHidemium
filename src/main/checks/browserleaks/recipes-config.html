@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>BrowserLeaks Recipes Config</title>
+  <style>
+    :root {
+      --bg: #0f172a; --panel: #1e293b; --border: #334155;
+      --text: #e2e8f0; --muted: #94a3b8; --primary: #2563eb;
+      --ok: #16a34a; --danger: #dc2626; --warn: #d97706;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh; background: var(--bg); color: var(--text);
+      font: 13px/1.45 "Segoe UI", system-ui, sans-serif;
+      display: flex; flex-direction: column;
+    }
+    header {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      padding: 12px 18px; background: #111827; border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; z-index: 10;
+    }
+    header h1 { margin: 0; font-size: 15px; }
+    header p { margin: 2px 0 0; color: var(--muted); font-size: 11px; }
+    .actions { display: flex; flex-wrap: wrap; gap: 8px; }
+    button, .btn {
+      border: 1px solid var(--border); background: var(--panel); color: var(--text);
+      padding: 7px 12px; border-radius: 7px; cursor: pointer; font-size: 13px;
+    }
+    button:hover { background: #263449; }
+    button.primary { background: var(--primary); border-color: var(--primary); font-weight: 600; }
+    button.ok { background: var(--ok); border-color: var(--ok); }
+    button.danger { background: var(--danger); border-color: var(--danger); }
+    button.warn { background: var(--warn); border-color: var(--warn); color: #111; }
+    main { display: grid; grid-template-columns: 240px 1fr; flex: 1; min-height: 0; }
+    nav {
+      border-right: 1px solid var(--border); background: #172033; padding: 10px;
+      overflow: auto;
+    }
+    nav button {
+      width: 100%; text-align: left; margin-bottom: 4px; background: transparent;
+    }
+    nav button.active { background: var(--primary); border-color: var(--primary); }
+    .panel { padding: 16px 18px; overflow: auto; }
+    .card {
+      background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+      padding: 14px; margin-bottom: 14px;
+    }
+    .card h2 { margin: 0 0 10px; font-size: 14px; }
+    .hint { color: var(--muted); font-size: 12px; margin: 0 0 12px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border-bottom: 1px solid var(--border); padding: 6px 8px; text-align: left; vertical-align: top; }
+    th { color: #cbd5e1; font-size: 11px; text-transform: uppercase; letter-spacing: .4px; }
+    input, select, textarea {
+      width: 100%; background: var(--bg); color: var(--text); border: 1px solid var(--border);
+      border-radius: 6px; padding: 6px 8px; font: inherit;
+    }
+    textarea { min-height: 72px; font-family: Consolas, monospace; font-size: 12px; }
+    textarea.tall { min-height: 180px; }
+    .row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+    .row > * { flex: 1; }
+    .row .fixed { flex: 0 0 auto; }
+    .badge {
+      display: inline-block; padding: 2px 8px; border-radius: 999px; background: #1e3a8a;
+      font-size: 11px; margin-left: 6px;
+    }
+    #status { color: var(--muted); font-size: 12px; min-height: 18px; }
+    #status.ok { color: #86efac; }
+    #status.err { color: #fca5a5; }
+    pre#preview {
+      margin: 0; max-height: 520px; overflow: auto; background: #0b1220;
+      border: 1px solid var(--border); border-radius: 8px; padding: 12px;
+      font: 11px/1.4 Consolas, monospace; white-space: pre-wrap;
+    }
+    .split { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .chip {
+      background: #0b1220; border: 1px solid var(--border); border-radius: 999px;
+      padding: 3px 10px; font-size: 12px; display: inline-flex; gap: 6px; align-items: center;
+    }
+    .chip button { padding: 2px 6px; font-size: 11px; border-radius: 999px; }
+    label.check { display: flex; align-items: center; gap: 8px; margin: 8px 0; }
+    @media (max-width: 960px) {
+      main { grid-template-columns: 1fr; }
+      .split { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>BrowserLeaks Recipes Config <span id="load-badge" class="badge">...</span></h1>
+      <p>PAGES · SKIP · PAGE_OF · SECTION · FIELD_OVERRIDE · whitelist WebGL/WebGPU/JS → Save vào recipes.js (giữ helper)</p>
+    </div>
+    <div class="actions">
+      <button type="button" id="btn-reload">Reload</button>
+      <button type="button" id="btn-preview">Preview block</button>
+      <button type="button" class="warn" id="btn-save">Save vào recipes.js</button>
+      <button type="button" class="primary" id="btn-export">Export block .js</button>
+      <button type="button" class="ok" id="btn-copy">Copy block</button>
+    </div>
+  </header>
+
+  <main>
+    <nav id="nav">
+      <button type="button" data-tab="pages" class="active">1. Pages</button>
+      <button type="button" data-tab="skip">2. Skip checks</button>
+      <button type="button" data-tab="pageof">3. CheckKey → Page</button>
+      <button type="button" data-tab="section">4. Section (h3)</button>
+      <button type="button" data-tab="fields">5. Field override</button>
+      <button type="button" data-tab="webgl">6. WebGL whitelist</button>
+      <button type="button" data-tab="webgpu">7. WebGPU whitelist</button>
+      <button type="button" data-tab="jsids">8. JS battery/network</button>
+      <button type="button" data-tab="preview">9. Preview / Save</button>
+    </nav>
+
+    <section class="panel">
+      <div id="status"></div>
+
+      <div class="tab" id="tab-pages">
+        <div class="card">
+          <h2>PAGES — URL scrape</h2>
+          <p class="hint">Key page: javascript, webgl, canvas, webgpu…</p>
+          <div class="row">
+            <input id="page-key" placeholder="page key" />
+            <input id="page-url" placeholder="https://..." />
+            <button type="button" class="fixed primary" id="btn-add-page">Thêm / cập nhật</button>
+          </div>
+          <table>
+            <thead><tr><th>Key</th><th>URL</th><th></th></tr></thead>
+            <tbody id="pages-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="tab" id="tab-skip" hidden>
+        <div class="card">
+          <h2>SKIP_CHECKS — không chạy trên BrowserLeaks</h2>
+          <p class="hint">VD: font, mac_address, desktop_name</p>
+          <div class="row">
+            <input id="skip-key" placeholder="checkKey" />
+            <button type="button" class="fixed primary" id="btn-add-skip">Thêm</button>
+          </div>
+          <div class="chips" id="skip-chips"></div>
+        </div>
+      </div>
+
+      <div class="tab" id="tab-pageof" hidden>
+        <div class="card">
+          <h2>PAGE_OF — checkKey dùng page nào</h2>
+          <div class="row">
+            <input id="pageof-key" placeholder="checkKey" />
+            <select id="pageof-page"></select>
+            <button type="button" class="fixed primary" id="btn-add-pageof">Thêm / cập nhật</button>
+          </div>
+          <table>
+            <thead><tr><th>checkKey</th><th>page</th><th></th></tr></thead>
+            <tbody id="pageof-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="tab" id="tab-section" hidden>
+        <div class="card">
+          <h2>SECTION_OF — h3 mặc định cho tableCell</h2>
+          <div class="split">
+            <input id="sec-key" placeholder="checkKey" />
+            <input id="sec-h3" placeholder="h3 text trên web" />
+          </div>
+          <div class="row" style="margin-top:8px">
+            <select id="sec-mode">
+              <option value="exact">exact</option>
+              <option value="contains">contains</option>
+            </select>
+            <button type="button" class="fixed primary" id="btn-add-sec">Thêm / cập nhật</button>
+          </div>
+          <table style="margin-top:12px">
+            <thead><tr><th>checkKey</th><th>h3</th><th>h3Mode</th><th></th></tr></thead>
+            <tbody id="section-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="tab" id="tab-fields" hidden>
+        <div class="card">
+          <h2>FIELD_OVERRIDE — selector / match / skip / selMode</h2>
+          <p class="hint">Hỗ trợ: tableCell · xpath · css · js · sel (JSON array). match: exact | includes | bool | formFactors | featureSet</p>
+
+          <label>configKey</label>
+          <input id="f-key" placeholder="hidemium.navigator.hardware_concurrency" list="f-key-list" />
+          <datalist id="f-key-list"></datalist>
+
+          <div class="split" style="margin-top:8px">
+            <div>
+              <label>label (tuỳ chọn)</label>
+              <input id="f-label" />
+            </div>
+            <div>
+              <label>match</label>
+              <select id="f-match">
+                <option value="">(default)</option>
+                <option value="exact">exact</option>
+                <option value="includes">includes</option>
+                <option value="bool">bool</option>
+                <option value="formFactors">formFactors</option>
+                <option value="featureSet">featureSet</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="split" style="margin-top:8px">
+            <div>
+              <label>selector type</label>
+              <select id="f-type">
+                <option value="tableCell">tableCell (h3 + cellLabel)</option>
+                <option value="xpath">xpath</option>
+                <option value="css">css</option>
+                <option value="js">js (page.evaluate)</option>
+                <option value="sel">sel (JSON array selectors)</option>
+              </select>
+            </div>
+            <div>
+              <label>selMode (khi type = sel)</label>
+              <select id="f-selmode">
+                <option value="">(default first)</option>
+                <option value="first">first</option>
+                <option value="merge">merge</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="row" style="margin-top:8px">
+            <label class="check fixed"><input type="checkbox" id="f-base64" /> base64</label>
+            <label class="check fixed"><input type="checkbox" id="f-skip" /> skip field</label>
+          </div>
+
+          <div id="box-tablecell" style="margin-top:8px">
+            <div class="split">
+              <div>
+                <label>h3</label>
+                <input id="f-h3" placeholder="Navigator Object" />
+              </div>
+              <div>
+                <label>h3Mode</label>
+                <select id="f-h3mode">
+                  <option value="">(inherit section)</option>
+                  <option value="exact">exact</option>
+                  <option value="contains">contains</option>
+                </select>
+              </div>
+            </div>
+            <label style="margin-top:8px;display:block">cellLabel</label>
+            <input id="f-cell" placeholder="hardwareConcurrency" />
+          </div>
+
+          <div id="box-path" hidden style="margin-top:8px">
+            <label id="f-path-label">xpath / css / js / sel JSON</label>
+            <textarea id="f-path" class="tall" placeholder="#css  hoặc  //xpath  hoặc  () => ...  hoặc  [{&quot;css&quot;:&quot;#a&quot;},{&quot;css&quot;:&quot;#b&quot;}]"></textarea>
+          </div>
+
+          <div class="row" style="margin-top:12px">
+            <button type="button" class="primary" id="btn-save-field">Lưu override</button>
+            <button type="button" class="danger" id="btn-del-field">Xoá override đang chọn</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Danh sách override <span id="field-count" class="badge">0</span></h2>
+          <input id="field-filter" placeholder="Lọc configKey..." style="margin-bottom:10px" />
+          <table>
+            <thead><tr><th>configKey</th><th>selector</th><th>match</th><th>flags</th><th></th></tr></thead>
+            <tbody id="fields-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="tab" id="tab-webgl" hidden>
+        <div class="card">
+          <h2>WEBGL_PAGE_IDS</h2>
+          <p class="hint">Một id mỗi dòng (ALIASED_LINE_WIDTH_RANGE…)</p>
+          <textarea id="webgl-ids" class="tall"></textarea>
+        </div>
+        <div class="card">
+          <h2>WEBGL_PARAM_ID — map suffix config → id DOM (null = skip)</h2>
+          <p class="hint">JSON object. VD: {"max_anisotropy":"MAX_TEXTURE_MAX_ANISOTROPY_EXT","webgl_extension":null}</p>
+          <textarea id="webgl-param-id" class="tall"></textarea>
+          <button type="button" class="primary" id="btn-apply-webgl-map" style="margin-top:8px">Áp dụng JSON map</button>
+        </div>
+      </div>
+
+      <div class="tab" id="tab-webgpu" hidden>
+        <div class="card">
+          <h2>WEBGPU_PAGE_LIMITS</h2>
+          <p class="hint">title= trên #gpu-limits — một tên mỗi dòng</p>
+          <textarea id="webgpu-limits" class="tall"></textarea>
+        </div>
+        <div class="card">
+          <h2>WEBGPU_PAGE_INFO</h2>
+          <p class="hint">title= trên #gpu-info — một tên mỗi dòng</p>
+          <textarea id="webgpu-info" class="tall"></textarea>
+        </div>
+      </div>
+
+      <div class="tab" id="tab-jsids" hidden>
+        <div class="card">
+          <h2>JS_BATTERY_IDS (#js-*)</h2>
+          <textarea id="js-battery" class="tall"></textarea>
+        </div>
+        <div class="card">
+          <h2>JS_NETWORK_IDS (#js-*)</h2>
+          <textarea id="js-network" class="tall"></textarea>
+        </div>
+      </div>
+
+      <div class="tab" id="tab-preview" hidden>
+        <div class="card">
+          <h2>Preview khối EDITABLE CONFIG</h2>
+          <p class="hint">
+            <strong>Save vào recipes.js</strong> chỉ thay đoạn giữa marker BEGIN/END — giữ nguyên scrapeWebGpuBundle, buildField, v.v.
+            Không dùng export cũ kiểu overwrite cả file.
+          </p>
+          <pre id="preview"></pre>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    let state = {
+      PAGES: {},
+      PAGE_OF: {},
+      SECTION_OF: {},
+      FIELD_OVERRIDE: {},
+      SKIP_CHECKS: [],
+      WEBGL_PAGE_IDS: [],
+      WEBGPU_PAGE_LIMITS: [],
+      WEBGPU_PAGE_INFO: [],
+      WEBGL_PARAM_ID: {},
+      JS_BATTERY_IDS: [],
+      JS_NETWORK_IDS: [],
+    };
+
+    const $ = (id) => document.getElementById(id);
+    const API_BASE = 'http://127.0.0.1:5179';
+
+    const status = (msg, kind) => {
+      const el = $('status');
+      el.textContent = msg || '';
+      el.className = kind || '';
+    };
+
+    function esc(s) {
+      return String(s ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function linesToList(text) {
+      return String(text || '')
+        .split(/\r?\n/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+    }
+
+    function listToLines(arr) {
+      return (arr || []).join('\n');
+    }
+
+    function selSummary(ov) {
+      if (!ov) return '';
+      if (ov.skip) return 'skip';
+      if (ov.sel) return 'sel[' + (Array.isArray(ov.sel) ? ov.sel.length : '?') + '] mode=' + (ov.selMode || 'first');
+      if (ov.xpath) return 'xpath: ' + String(ov.xpath).slice(0, 50);
+      if (ov.css) return 'css: ' + ov.css;
+      if (ov.by === 'js' || ov.js) return 'js: ' + String(ov.value || ov.js || '').slice(0, 50);
+      if (ov.by && ov.by !== 'tableCell') return ov.by + ': ' + (ov.value || '');
+      const h3 = ov.h3 ? ov.h3 + ' / ' : '';
+      return 'tableCell: ' + h3 + (ov.cellLabel || ov.label || '');
+    }
+
+    function flagsSummary(ov) {
+      const bits = [];
+      if (ov.skip) bits.push('skip');
+      if (ov.base64) bits.push('base64');
+      if (ov.selMode) bits.push('selMode=' + ov.selMode);
+      return bits.join(', ');
+    }
+
+    function pageOptionsHtml(selected) {
+      return Object.keys(state.PAGES)
+        .map((k) => `<option value="${esc(k)}" ${k === selected ? 'selected' : ''}>${esc(k)}</option>`)
+        .join('');
+    }
+
+    function renderPages() {
+      $('pages-body').innerHTML = Object.entries(state.PAGES)
+        .map(
+          ([k, url]) => `<tr>
+            <td><code>${esc(k)}</code></td>
+            <td><input data-page-url="${esc(k)}" value="${esc(url)}" /></td>
+            <td><button type="button" data-del-page="${esc(k)}" class="danger">Xoá</button></td>
+          </tr>`
+        )
+        .join('');
+      $('pageof-page').innerHTML = pageOptionsHtml();
+    }
+
+    function renderSkip() {
+      $('skip-chips').innerHTML = (state.SKIP_CHECKS || [])
+        .map(
+          (k) => `<span class="chip"><code>${esc(k)}</code>
+            <button type="button" data-del-skip="${esc(k)}" class="danger">×</button></span>`
+        )
+        .join('');
+    }
+
+    function renderPageOf() {
+      $('pageof-body').innerHTML = Object.entries(state.PAGE_OF)
+        .map(
+          ([k, p]) => `<tr>
+            <td><code>${esc(k)}</code></td>
+            <td><select data-pageof="${esc(k)}">${pageOptionsHtml(p)}</select></td>
+            <td><button type="button" data-del-pageof="${esc(k)}" class="danger">Xoá</button></td>
+          </tr>`
+        )
+        .join('');
+    }
+
+    function renderSection() {
+      $('section-body').innerHTML = Object.entries(state.SECTION_OF)
+        .map(([k, v]) => {
+          const mode = v.h3Mode || 'exact';
+          return `<tr>
+            <td><code>${esc(k)}</code></td>
+            <td><input data-sec-h3="${esc(k)}" value="${esc(v.h3 || '')}" /></td>
+            <td>
+              <select data-sec-mode="${esc(k)}">
+                <option value="exact" ${mode === 'exact' ? 'selected' : ''}>exact</option>
+                <option value="contains" ${mode === 'contains' ? 'selected' : ''}>contains</option>
+              </select>
+            </td>
+            <td><button type="button" data-del-sec="${esc(k)}" class="danger">Xoá</button></td>
+          </tr>`;
+        })
+        .join('');
+    }
+
+    function renderFields() {
+      const q = ($('field-filter').value || '').trim().toLowerCase();
+      const entries = Object.entries(state.FIELD_OVERRIDE).filter(([k]) => !q || k.toLowerCase().includes(q));
+      $('field-count').textContent = String(Object.keys(state.FIELD_OVERRIDE).length);
+      $('f-key-list').innerHTML = Object.keys(state.FIELD_OVERRIDE)
+        .map((k) => `<option value="${esc(k)}"></option>`)
+        .join('');
+      $('fields-body').innerHTML = entries
+        .map(
+          ([k, ov]) => `<tr>
+            <td><code>${esc(k)}</code></td>
+            <td>${esc(selSummary(ov))}</td>
+            <td>${esc(ov.match || '')}</td>
+            <td>${esc(flagsSummary(ov))}</td>
+            <td>
+              <button type="button" data-edit-field="${esc(k)}">Sửa</button>
+              <button type="button" data-del-field="${esc(k)}" class="danger">Xoá</button>
+            </td>
+          </tr>`
+        )
+        .join('');
+    }
+
+    function renderWhitelists() {
+      $('webgl-ids').value = listToLines(state.WEBGL_PAGE_IDS);
+      $('webgpu-limits').value = listToLines(state.WEBGPU_PAGE_LIMITS);
+      $('webgpu-info').value = listToLines(state.WEBGPU_PAGE_INFO);
+      $('js-battery').value = listToLines(state.JS_BATTERY_IDS);
+      $('js-network').value = listToLines(state.JS_NETWORK_IDS);
+      $('webgl-param-id').value = JSON.stringify(state.WEBGL_PARAM_ID || {}, null, 2);
+    }
+
+    function renderAll() {
+      renderPages();
+      renderSkip();
+      renderPageOf();
+      renderSection();
+      renderFields();
+      renderWhitelists();
+    }
+
+    function syncFromDom() {
+      document.querySelectorAll('[data-page-url]').forEach((el) => {
+        state.PAGES[el.dataset.pageUrl] = el.value.trim();
+      });
+      document.querySelectorAll('[data-pageof]').forEach((el) => {
+        state.PAGE_OF[el.dataset.pageof] = el.value;
+      });
+      document.querySelectorAll('[data-sec-h3]').forEach((el) => {
+        const k = el.dataset.secH3;
+        state.SECTION_OF[k] = state.SECTION_OF[k] || {};
+        state.SECTION_OF[k].h3 = el.value.trim();
+      });
+      document.querySelectorAll('[data-sec-mode]').forEach((el) => {
+        const k = el.dataset.secMode;
+        state.SECTION_OF[k] = state.SECTION_OF[k] || {};
+        state.SECTION_OF[k].h3Mode = el.value;
+      });
+      state.WEBGL_PAGE_IDS = linesToList($('webgl-ids').value);
+      state.WEBGPU_PAGE_LIMITS = linesToList($('webgpu-limits').value);
+      state.WEBGPU_PAGE_INFO = linesToList($('webgpu-info').value);
+      state.JS_BATTERY_IDS = linesToList($('js-battery').value);
+      state.JS_NETWORK_IDS = linesToList($('js-network').value);
+      try {
+        state.WEBGL_PARAM_ID = JSON.parse($('webgl-param-id').value || '{}');
+      } catch (_) {
+        /* giữ state cũ nếu JSON lỗi — validate lúc save */
+      }
+    }
+
+    async function loadConfig() {
+      try {
+        const res = await fetch(API_BASE + '/api/config', { cache: 'no-store' });
+        const text = await res.text();
+        if (!res.ok) {
+          throw new Error(res.status + ' — chạy `npm run recipes:config` rồi mở http://127.0.0.1:5179/recipes-config.html. ' + text.slice(0, 120));
+        }
+        const data = JSON.parse(text);
+        state = {
+          PAGES: data.PAGES || {},
+          PAGE_OF: data.PAGE_OF || {},
+          SECTION_OF: data.SECTION_OF || {},
+          FIELD_OVERRIDE: data.FIELD_OVERRIDE || {},
+          SKIP_CHECKS: data.SKIP_CHECKS || [],
+          WEBGL_PAGE_IDS: data.WEBGL_PAGE_IDS || [],
+          WEBGPU_PAGE_LIMITS: data.WEBGPU_PAGE_LIMITS || [],
+          WEBGPU_PAGE_INFO: data.WEBGPU_PAGE_INFO || [],
+          WEBGL_PARAM_ID: data.WEBGL_PARAM_ID || {},
+          JS_BATTERY_IDS: data.JS_BATTERY_IDS || [],
+          JS_NETWORK_IDS: data.JS_NETWORK_IDS || [],
+        };
+        $('load-badge').textContent = 'live recipes.js';
+        status('Đã load đầy đủ key từ recipes.js', 'ok');
+        renderAll();
+      } catch (err) {
+        $('load-badge').textContent = 'offline';
+        status('Không load được API. Chạy: npm run recipes:config — ' + (err.message || err), 'err');
+      }
+    }
+
+    function toggleFieldBoxes() {
+      const t = $('f-type').value;
+      $('box-tablecell').hidden = t !== 'tableCell';
+      $('box-path').hidden = t === 'tableCell';
+      const labels = {
+        xpath: 'xpath',
+        css: 'css selector',
+        js: 'js (() => ... hoặc expression)',
+        sel: 'sel JSON array — vd [{"css":"#a"},{"css":"#b"}]',
+      };
+      $('f-path-label').textContent = labels[t] || 'value';
+    }
+
+    function fillFieldForm(key) {
+      const ov = state.FIELD_OVERRIDE[key] || {};
+      $('f-key').value = key;
+      $('f-label').value = ov.label || '';
+      $('f-match').value = ov.match || '';
+      $('f-base64').checked = !!ov.base64;
+      $('f-skip').checked = !!ov.skip;
+      $('f-h3').value = ov.h3 || '';
+      $('f-h3mode').value = ov.h3Mode || '';
+      $('f-cell').value = ov.cellLabel || '';
+      $('f-selmode').value = ov.selMode || '';
+      if (ov.sel) {
+        $('f-type').value = 'sel';
+        $('f-path').value = JSON.stringify(ov.sel, null, 2);
+      } else if (ov.xpath) {
+        $('f-type').value = 'xpath';
+        $('f-path').value = ov.xpath;
+      } else if (ov.css) {
+        $('f-type').value = 'css';
+        $('f-path').value = ov.css;
+      } else if (ov.by === 'js' || ov.js) {
+        $('f-type').value = 'js';
+        $('f-path').value = ov.value || ov.js || '';
+      } else {
+        $('f-type').value = 'tableCell';
+        $('f-path').value = '';
+      }
+      toggleFieldBoxes();
+    }
+
+    function collectFieldOverride() {
+      const key = $('f-key').value.trim();
+      if (!key) throw new Error('Thiếu configKey');
+      const type = $('f-type').value;
+      const ov = {};
+      if ($('f-label').value.trim()) ov.label = $('f-label').value.trim();
+      if ($('f-match').value) ov.match = $('f-match').value;
+      if ($('f-base64').checked) ov.base64 = true;
+      if ($('f-skip').checked) ov.skip = true;
+
+      if (type === 'xpath') {
+        const v = $('f-path').value.trim();
+        if (!v && !ov.skip) throw new Error('Thiếu xpath');
+        if (v) ov.xpath = v;
+      } else if (type === 'css') {
+        const v = $('f-path').value.trim();
+        if (!v && !ov.skip) throw new Error('Thiếu css');
+        if (v) ov.css = v;
+      } else if (type === 'js') {
+        const v = $('f-path').value.trim();
+        if (!v && !ov.skip) throw new Error('Thiếu js');
+        if (v) ov.js = v;
+      } else if (type === 'sel') {
+        const raw = $('f-path').value.trim();
+        if (!raw && !ov.skip) throw new Error('Thiếu sel JSON');
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (!Array.isArray(parsed)) throw new Error('sel phải là JSON array');
+          ov.sel = parsed;
+        }
+        if ($('f-selmode').value) ov.selMode = $('f-selmode').value;
+      } else {
+        if ($('f-h3').value.trim()) ov.h3 = $('f-h3').value.trim();
+        if ($('f-h3mode').value) ov.h3Mode = $('f-h3mode').value;
+        if ($('f-cell').value.trim()) ov.cellLabel = $('f-cell').value.trim();
+        if (!ov.skip && !ov.cellLabel && !ov.h3 && !ov.label) {
+          throw new Error('tableCell cần cellLabel (hoặc h3), hoặc tick skip');
+        }
+      }
+      return { key, ov };
+    }
+
+    async function fetchPreviewBlock() {
+      syncFromDom();
+      try {
+        state.WEBGL_PARAM_ID = JSON.parse($('webgl-param-id').value || '{}');
+      } catch (err) {
+        throw new Error('WEBGL_PARAM_ID JSON lỗi: ' + err.message);
+      }
+      const res = await fetch(API_BASE + '/api/preview-block', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(state),
+      });
+      const text = await res.text();
+      if (!res.ok) throw new Error(text);
+      return text;
+    }
+
+    function download(filename, text) {
+      const blob = new Blob([text], { type: 'text/javascript;charset=utf-8' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }
+
+    document.getElementById('nav').addEventListener('click', async (e) => {
+      const btn = e.target.closest('[data-tab]');
+      if (!btn) return;
+      document.querySelectorAll('#nav button').forEach((b) => b.classList.remove('active'));
+      btn.classList.add('active');
+      document.querySelectorAll('.tab').forEach((t) => (t.hidden = true));
+      $('tab-' + btn.dataset.tab).hidden = false;
+      if (btn.dataset.tab === 'preview') {
+        try {
+          $('preview').textContent = await fetchPreviewBlock();
+        } catch (err) {
+          status(err.message, 'err');
+        }
+      }
+    });
+
+    $('btn-add-page').onclick = () => {
+      const k = $('page-key').value.trim();
+      const u = $('page-url').value.trim();
+      if (!k || !u) return status('Nhập page key + URL', 'err');
+      state.PAGES[k] = u;
+      renderAll();
+      status('Đã thêm page ' + k, 'ok');
+    };
+    $('pages-body').addEventListener('click', (e) => {
+      const del = e.target.closest('[data-del-page]');
+      if (!del) return;
+      delete state.PAGES[del.dataset.delPage];
+      renderAll();
+    });
+    $('pages-body').addEventListener('change', (e) => {
+      if (e.target.dataset.pageUrl) state.PAGES[e.target.dataset.pageUrl] = e.target.value.trim();
+    });
+
+    $('btn-add-skip').onclick = () => {
+      const k = $('skip-key').value.trim();
+      if (!k) return status('Nhập checkKey', 'err');
+      if (!state.SKIP_CHECKS.includes(k)) state.SKIP_CHECKS.push(k);
+      $('skip-key').value = '';
+      renderSkip();
+      status('Đã skip ' + k, 'ok');
+    };
+    $('skip-chips').addEventListener('click', (e) => {
+      const del = e.target.closest('[data-del-skip]');
+      if (!del) return;
+      state.SKIP_CHECKS = state.SKIP_CHECKS.filter((x) => x !== del.dataset.delSkip);
+      renderSkip();
+    });
+
+    $('btn-add-pageof').onclick = () => {
+      const k = $('pageof-key').value.trim();
+      const p = $('pageof-page').value;
+      if (!k) return status('Nhập checkKey', 'err');
+      state.PAGE_OF[k] = p;
+      renderPageOf();
+      status('Đã gán ' + k + ' → ' + p, 'ok');
+    };
+    $('pageof-body').addEventListener('change', (e) => {
+      if (e.target.dataset.pageof) state.PAGE_OF[e.target.dataset.pageof] = e.target.value;
+    });
+    $('pageof-body').addEventListener('click', (e) => {
+      const del = e.target.closest('[data-del-pageof]');
+      if (!del) return;
+      delete state.PAGE_OF[del.dataset.delPageof];
+      renderPageOf();
+    });
+
+    $('btn-add-sec').onclick = () => {
+      const k = $('sec-key').value.trim();
+      const h3 = $('sec-h3').value.trim();
+      if (!k || !h3) return status('Nhập checkKey + h3', 'err');
+      state.SECTION_OF[k] = { h3, h3Mode: $('sec-mode').value };
+      renderSection();
+      status('Đã lưu section ' + k, 'ok');
+    };
+    $('section-body').addEventListener('change', (e) => {
+      const h3 = e.target.dataset.secH3;
+      const mode = e.target.dataset.secMode;
+      if (h3) {
+        state.SECTION_OF[h3] = state.SECTION_OF[h3] || {};
+        state.SECTION_OF[h3].h3 = e.target.value.trim();
+      }
+      if (mode) {
+        state.SECTION_OF[mode] = state.SECTION_OF[mode] || {};
+        state.SECTION_OF[mode].h3Mode = e.target.value;
+      }
+    });
+    $('section-body').addEventListener('click', (e) => {
+      const del = e.target.closest('[data-del-sec]');
+      if (!del) return;
+      delete state.SECTION_OF[del.dataset.delSec];
+      renderSection();
+    });
+
+    $('f-type').onchange = toggleFieldBoxes;
+    $('btn-save-field').onclick = () => {
+      try {
+        const { key, ov } = collectFieldOverride();
+        state.FIELD_OVERRIDE[key] = ov;
+        renderFields();
+        status('Đã lưu override ' + key, 'ok');
+      } catch (err) {
+        status(err.message, 'err');
+      }
+    };
+    $('btn-del-field').onclick = () => {
+      const key = $('f-key').value.trim();
+      if (!key || !state.FIELD_OVERRIDE[key]) return;
+      delete state.FIELD_OVERRIDE[key];
+      renderFields();
+      status('Đã xoá ' + key, 'ok');
+    };
+    $('field-filter').oninput = renderFields;
+    $('fields-body').addEventListener('click', (e) => {
+      const edit = e.target.closest('[data-edit-field]');
+      const del = e.target.closest('[data-del-field]');
+      if (edit) fillFieldForm(edit.dataset.editField);
+      if (del) {
+        delete state.FIELD_OVERRIDE[del.dataset.delField];
+        renderFields();
+      }
+    });
+
+    $('btn-apply-webgl-map').onclick = () => {
+      try {
+        state.WEBGL_PARAM_ID = JSON.parse($('webgl-param-id').value || '{}');
+        status('Đã áp dụng WEBGL_PARAM_ID', 'ok');
+      } catch (err) {
+        status('JSON lỗi: ' + err.message, 'err');
+      }
+    };
+
+    $('btn-reload').onclick = loadConfig;
+    $('btn-preview').onclick = () => document.querySelector('[data-tab="preview"]').click();
+
+    $('btn-save').onclick = async () => {
+      try {
+        syncFromDom();
+        state.WEBGL_PARAM_ID = JSON.parse($('webgl-param-id').value || '{}');
+        const res = await fetch(API_BASE + '/api/save-config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(state),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || res.status);
+        status('Đã Save vào recipes.js (chỉ khối EDITABLE)', 'ok');
+        if (data.config) {
+          state = { ...state, ...data.config };
+          renderAll();
+        }
+      } catch (err) {
+        status('Save lỗi: ' + (err.message || err), 'err');
+      }
+    };
+
+    $('btn-export').onclick = async () => {
+      try {
+        const code = await fetchPreviewBlock();
+        $('preview').textContent = code;
+        download('recipes-editable-block.js', code);
+        status('Đã tải khối EDITABLE (không phải full recipes.js)', 'ok');
+      } catch (err) {
+        status(err.message, 'err');
+      }
+    };
+
+    $('btn-copy').onclick = async () => {
+      try {
+        const code = await fetchPreviewBlock();
+        $('preview').textContent = code;
+        await navigator.clipboard.writeText(code);
+        status('Đã copy khối EDITABLE', 'ok');
+      } catch (err) {
+        status(err.message, 'err');
+      }
+    };
+
+    toggleFieldBoxes();
+    loadConfig();
+  </script>
+</body>
+</html>

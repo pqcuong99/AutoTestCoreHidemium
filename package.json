@@ -5,11 +5,15 @@
   "main": "src/main/main.js",
   "scripts": {
     "start": "electron .",
-    "dev": "electron . --dev"
+    "dev": "electron . --dev",
+    "recipes:config": "node src/main/checks/browserleaks/recipes-config-server.js"
   },
   "author": "",
   "license": "MIT",
   "devDependencies": {
     "electron": "^33.2.0"
+  },
+  "dependencies": {
+    "playwright-core": "^1.61.1"
   }
 }

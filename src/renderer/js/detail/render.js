@@ -49,12 +49,16 @@ window.DRender = (() => {
 
   function head() {
     const thead = document.getElementById('dl-thead');
-    const siteCols = WEBSITES.map((w) => `<th data-url="${esc(w.url)}" class="col-site">${esc(w.label)}</th>`).join('');
+    const siteCols = WEBSITES.map(
+      (w) =>
+        `<th data-url="${esc(w.url)}" data-col-key="site:${esc(w.key)}" class="col-site">${esc(w.label)}</th>`
+    ).join('');
     thead.innerHTML = `<tr>
-      <th class="col-a">${esc(t('detail.colCheck'))}</th>
-      <th class="col-b">${esc(t('detail.colConfig'))}</th>
+      <th class="col-a" data-col-key="check">${esc(t('detail.colCheck'))}</th>
+      <th class="col-b" data-col-key="config">${esc(t('detail.colConfig'))}</th>
       ${siteCols}
     </tr>`;
+    if (window.DTableResize) DTableResize.applyColumns();
   }
 
   function fieldsHtml(cfg) {
@@ -76,16 +80,56 @@ window.DRender = (() => {
       .join('');
   }
 
+  function siteLinesHtml(txt) {
+    const lines = String(txt ?? '')
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter(Boolean);
+    if (!lines.length) return '';
+
+    // "key: value" -> hang ngang; nhieu dong khong co ":" -> van 1 cot
+    const hasKv = lines.some((l) => /^[^:]+:\s*.+/.test(l));
+    if (!hasKv) {
+      return `<span class="site-cell-plain">${esc(lines.join('\n'))}</span>`;
+    }
+
+    return lines
+      .map((line) => {
+        const idx = line.indexOf(':');
+        if (idx <= 0) {
+          return `<div class="kv"><span class="kv-v">${esc(line)}</span></div>`;
+        }
+        const k = line.slice(0, idx).trim();
+        const v = line.slice(idx + 1).trim();
+        return `<div class="kv"><span class="kv-k">${esc(k)}</span><span class="kv-v">${esc(v)}</span></div>`;
+      })
+      .join('');
+  }
+
   function siteCell(site) {
     if (!site) return '<span class="site-pending">-</span>';
-    const cls = { pending: 'site-pending', skipped: 'site-skipped', pass: 'site-pass', fail: 'site-fail' }[site.state] || 'site-pending';
-    const txt =
-      site.state === 'pending'
-        ? t('detail.sitePending')
-        : site.state === 'skipped'
-          ? t('detail.siteSkipped')
-          : site.value || site.state;
-    return `<span class="site-cell ${cls}">${esc(txt)}</span>`;
+    const cls =
+      {
+        pending: 'site-pending',
+        skipped: 'site-skipped',
+        pass: 'site-pass',
+        fail: 'site-fail',
+      }[site.state] || (site.pass ? 'site-pass' : 'site-pending');
+
+    let txt;
+    if (site.state === 'pending') {
+      txt = t('detail.sitePending');
+    } else if (site.state === 'skipped') {
+      txt = site.value && site.value !== '-' ? site.value : t('detail.siteSkipped');
+    } else {
+      txt = site.value || t('detail.noData');
+    }
+
+    if (site.state === 'pending' || (site.state === 'skipped' && (!site.value || site.value === '-'))) {
+      return `<span class="site-cell ${cls}"><span class="site-cell-plain">${esc(txt)}</span></span>`;
+    }
+
+    return `<div class="site-cell ${cls}">${siteLinesHtml(txt)}</div>`;
   }
 
   function table() {
@@ -132,6 +176,7 @@ window.DRender = (() => {
         </tr>`;
       })
       .join('');
+    if (window.DTableResize) DTableResize.applyRows();
   }
 
   function logs() {

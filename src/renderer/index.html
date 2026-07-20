@@ -104,6 +104,14 @@
         </div>
 
         <div class="field">
+          <label class="check-item settings-toggle">
+            <input type="checkbox" id="chk-auto-close" />
+            <span data-i18n="settings.autoClose">Tự đóng profile khi test xong</span>
+          </label>
+          <p class="field-hint" data-i18n="settings.autoClose.hint">Bật: gọi closeProfile sau mỗi profile. Tắt: giữ browser mở để xem tay.</p>
+        </div>
+
+        <div class="field">
           <div class="field-head">
             <label data-i18n="settings.checks">Các mục cần check</label>
             <div class="link-group">
@@ -178,6 +186,7 @@
   <script src="../shared/i18n/en.js"></script>
   <script src="../shared/i18n/i18n.js"></script>
   <script src="js/detail/store.js"></script>
+  <script src="js/detail/tableResize.js"></script>
   <script src="js/detail/render.js"></script>
   <script src="js/detail/detailLog.js"></script>
   <script src="js/state.js"></script>

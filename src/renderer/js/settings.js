@@ -65,6 +65,7 @@ window.Settings = (() => {
     $('#num-threads').value = config.threads;
     const locale = config.locale === 'en' ? 'en' : 'vi';
     $('#sel-locale').value = locale;
+    $('#chk-auto-close').checked = !!config.autoClose;
     applyLocale(locale);
 
     $('#sel-locale').addEventListener('change', async () => {
@@ -81,6 +82,12 @@ window.Settings = (() => {
       window.api.config.set({ threads: v });
     });
 
+    $('#chk-auto-close').addEventListener('change', () => {
+      const on = $('#chk-auto-close').checked;
+      cfg.autoClose = on;
+      window.api.config.set({ autoClose: on });
+    });
+
     $('#check-list').addEventListener('change', persistChecks);
 
     $('#chk-all-on').addEventListener('click', () => {
@@ -93,5 +100,9 @@ window.Settings = (() => {
     });
   }
 
-  return { init, getCheckKeys, getThreads, getTestWaitSec, applyLocale };
+  function getAutoClose() {
+    return !!$('#chk-auto-close')?.checked;
+  }
+
+  return { init, getCheckKeys, getThreads, getTestWaitSec, getAutoClose, applyLocale };
 })();
