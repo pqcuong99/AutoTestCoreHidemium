@@ -10,6 +10,7 @@
   Table.init();
   ProfileSource.init();
   DetailLog.init();
+  AutomationUI.init();
   RunnerUI.init();
 
   // Sang tab da luu ngay tu dau, khong doi API tra ve.
