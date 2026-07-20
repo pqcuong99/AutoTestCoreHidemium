@@ -13,6 +13,7 @@
 const { WEBSITES } = require('../../../shared/websites');
 const { maybeBase64 } = require('../../configMapper');
 const { openPage, textBySelector } = require('./cdp');
+const { resolve: resolvePlatform } = require('../../../shared/platformPolicy');
 
 const SITE = WEBSITES.find((w) => w.key === 'browserleaks');
 const isDev = process.argv.includes('--dev');
@@ -37,6 +38,7 @@ let {
   findWebgpuLimitConfigKey,
   WEBGPU_PAGE_LIMITS,
   WEBGPU_PAGE_INFO,
+  SKIP_CHECKS,
 } = loadRecipes();
 
 function refreshRecipes() {
@@ -48,6 +50,7 @@ function refreshRecipes() {
     findWebgpuLimitConfigKey,
     WEBGPU_PAGE_LIMITS,
     WEBGPU_PAGE_INFO,
+    SKIP_CHECKS,
   } = loadRecipes());
 }
 
@@ -170,8 +173,13 @@ function compareOne(field, expected, actual) {
 
 /**
  * Scrape tat ca field cua cac checkKey tren 1 page Playwright.
+ * @param {import('playwright-core').Page} page
+ * @param {string[]} checkKeys
+ * @param {Record<string,string>} configMap
+ * @param {(msg:string, kind?:string)=>void} step
+ * @param {object} [platform]
  */
-async function scrapePage(page, checkKeys, configMap, step) {
+async function scrapePage(page, checkKeys, configMap, step, platform) {
   /** @type {Record<string, Array>} */
   const out = {};
 
@@ -203,11 +211,15 @@ async function scrapePage(page, checkKeys, configMap, step) {
     if (!RECIPES[checkKey]) continue;
     out[checkKey] = [];
 
-    let fields = fieldsForCheck(checkKey, configMap);
+    let fields = fieldsForCheck(checkKey, configMap, platform);
 
     // WebGPU: dung bundle lam nguon chinh — dam bao moi limit/info/feature deu thanh field
     if (checkKey === 'webgpu' && webgpuBundle) {
       fields = fieldsFromWebGpuBundle(webgpuBundle, configMap);
+      const skipKeys = platform?.skipConfigKeys;
+      if (skipKeys) {
+        fields = fields.filter((f) => !f.configKey || !skipKeys.has(f.configKey));
+      }
     }
 
     if (!fields.length) {
@@ -505,6 +517,8 @@ function summarize(fieldResults, checkKey) {
  *   emit: (e:object)=>void,
  *   uuid: string,
  *   step: (msg:string, kind?:string)=>void,
+ *   platform?: object,
+ *   targetOs?: string,
  * }} ctx
  */
 async function run(checkKeys, ctx) {
@@ -512,18 +526,37 @@ async function run(checkKeys, ctx) {
   const { openData, configMap, signal, step } = ctx;
   if (signal?.aborted) throw new Error('aborted');
 
+  const platform = ctx.platform || resolvePlatform(ctx.targetOs || 'windows');
+  const skipChecks =
+    platform.skipChecks && platform.skipChecks.size
+      ? platform.skipChecks
+      : SKIP_CHECKS || new Set();
+
+  step(`BrowserLeaks: targetOs=${platform.id} (policy ${platform.supported ? 'ok' : 'unsupported'})`, 'ok');
+
   const results = {};
   for (const key of checkKeys) {
     results[key] = { state: 'skipped', value: '-', pass: false };
   }
 
-  const known = checkKeys.filter((k) => RECIPES[k]);
-  const unknown = checkKeys.filter((k) => !RECIPES[k]);
+  // checkKey bi policy skip (font / mac_address / desktop_name tren Windows)
+  for (const key of checkKeys) {
+    if (skipChecks.has(key)) {
+      results[key] = {
+        state: 'skipped',
+        value: `skipped (${platform.id} policy)`,
+        pass: false,
+      };
+    }
+  }
+
+  const known = checkKeys.filter((k) => RECIPES[k] && !skipChecks.has(k));
+  const unknown = checkKeys.filter((k) => !RECIPES[k] && !skipChecks.has(k));
   for (const k of unknown) {
     results[k] = { state: 'skipped', value: 'not supported on browserleaks', pass: false };
   }
   if (!known.length) {
-    step('BrowserLeaks: khong co checkKey nao co recipe', 'warn');
+    step('BrowserLeaks: khong co checkKey nao co recipe (sau policy)', 'warn');
     return results;
   }
 
@@ -543,7 +576,7 @@ async function run(checkKeys, ctx) {
     let session = null;
     try {
       session = await openPage(openData, url, { signal, step });
-      const scraped = await scrapePage(session.page, keys, configMap, step);
+      const scraped = await scrapePage(session.page, keys, configMap, step, platform);
       for (const key of keys) {
         results[key] = summarize(scraped[key], key);
       }

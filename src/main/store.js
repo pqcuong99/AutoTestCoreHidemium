@@ -16,6 +16,7 @@ const DEFAULTS = {
   autoClose: false,       // tu goi /closeProfile sau khi check xong
   testWaitMs: 10000,      // che do Test luong: giu profile mo bao lau truoc khi dong
   locale: 'vi',           // 'vi' | 'en'
+  targetOs: 'windows',    // OS can test: windows | macos | ios | android
 };
 
 let cachePath = null;

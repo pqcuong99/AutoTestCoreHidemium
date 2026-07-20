@@ -14,6 +14,7 @@ const { readProfileConfig } = require('../configReader');
 const { buildConfigColumn } = require('../configMapper');
 const { WEBSITES } = require('../../shared/websites');
 const { t } = require('../../shared/i18n');
+const { resolve: resolvePlatform } = require('../../shared/platformPolicy');
 const creepjs = require('./creepjs');
 const browserleaks = require('./browserleaks');
 
@@ -32,6 +33,18 @@ async function runProfileCheck(lane, checkKeys, ctx) {
   const { uuid, name } = lane.job;
   const { signal, emit, options } = ctx;
   const step = (message, kind) => emit({ type: 'log', uuid, message, kind });
+  const platform = resolvePlatform(options?.targetOs);
+  step(t('check.targetOs', { os: platform.label || platform.id }), 'ok');
+
+  if (!platform.supported) {
+    const msg = t('check.osUnsupported', {
+      os: platform.id,
+      reason: platform.reason || '',
+    });
+    step(msg, 'err');
+    emit({ type: 'profile-error', uuid, stage: 'platform', error: msg });
+    return { ok: false, status: msg, error: msg, rows: {} };
+  }
 
   const abortCheck = () => {
     if (signal.aborted) throw new Error('aborted');
@@ -119,6 +132,8 @@ async function runProfileCheck(lane, checkKeys, ctx) {
         emit,
         uuid,
         step,
+        platform,
+        targetOs: platform.id,
       });
       lane.assertOwns(uuid);
 

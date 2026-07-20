@@ -18,7 +18,8 @@ const PAGES = {
   webgpu: "https://browserleaks.com/webgpu"
 };
 
-/** Check khong chay tren BrowserLeaks (font kho scrape; mac/desktop khong co tren web). */
+/** Check khong chay tren BrowserLeaks (Windows default).
+ *  Runtime uu tien platformPolicy.skipChecks — giu set nay lam fallback. */
 const SKIP_CHECKS = new Set(["font", "mac_address", "desktop_name"]);
 
 // =============================================================================
@@ -1003,7 +1004,7 @@ function buildExpandFields(checkKey, expandPrefix, configMap) {
 function buildRecipes() {
   const recipes = {};
   for (const [checkKey, rule] of Object.entries(MAPPING)) {
-    if (SKIP_CHECKS.has(checkKey)) continue;
+    // Include tat ca checkKey — skip theo platform.skipChecks luc run (khong hardcode OS).
     const staticFields = (rule.fields || []).map((f) => buildField(checkKey, f));
     recipes[checkKey] = {
       page: PAGE_OF[checkKey] || 'javascript',
@@ -1016,7 +1017,12 @@ function buildRecipes() {
 
 const RECIPES = buildRecipes();
 
-function fieldsForCheck(checkKey, configMap) {
+/**
+ * @param {string} checkKey
+ * @param {Record<string,string>} [configMap]
+ * @param {{ skipConfigKeys?: Set<string> } | null} [platform]
+ */
+function fieldsForCheck(checkKey, configMap, platform) {
   // webgl_param / webgpu: uu tien TAT CA key tren web de doi chieu / bo sung config
   if (checkKey === 'webgl_param') return fieldsFromWebGlParam(configMap || {});
   if (checkKey === 'webgpu') return fieldsFromWebGpu(configMap || {});
@@ -1032,7 +1038,12 @@ function fieldsForCheck(checkKey, configMap) {
       staticKeys.add(f.configKey);
     }
   }
-  return fields.filter((f) => !f.skip);
+  const skipKeys = platform?.skipConfigKeys;
+  return fields.filter((f) => {
+    if (f.skip) return false;
+    if (skipKeys && f.configKey && skipKeys.has(f.configKey)) return false;
+    return true;
+  });
 }
 
 module.exports = {

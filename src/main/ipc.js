@@ -70,6 +70,7 @@ function register(getWindow) {
             autoClose: cfg.autoClose,
             mode: mode || 'check',
             testWaitMs: cfg.testWaitMs,
+            targetOs: cfg.targetOs || 'windows',
           },
         },
         (evt) => broadcast('run:event', evt)

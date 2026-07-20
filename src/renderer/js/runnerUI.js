@@ -61,6 +61,7 @@ window.RunnerUI = (() => {
       logLine(t('log.testHint', { threads }), 'warn');
     } else {
       logLine(t('log.checkStart', { n: profiles.length, checks: checkKeys.length, threads }));
+      logLine(t('check.targetOs', { os: Settings.getTargetOs() }), 'ok');
     }
 
     try {

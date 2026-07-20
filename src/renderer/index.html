@@ -104,6 +104,19 @@
         </div>
 
         <div class="field">
+          <label for="sel-target-os" data-i18n="settings.targetOs">OS cần test</label>
+          <select id="sel-target-os" class="select">
+            <option value="windows">Windows</option>
+            <option value="macos" disabled>macOS (sắp có)</option>
+            <option value="ios" disabled>iOS (sắp có)</option>
+            <option value="android" disabled>Android (sắp có)</option>
+          </select>
+          <p class="field-hint" data-i18n="settings.targetOs.hint">Chọn OS fingerprint để áp policy test. Hiện chỉ Windows.</p>
+        </div>
+
+
+
+        <div class="field">
           <label class="check-item settings-toggle">
             <input type="checkbox" id="chk-auto-close" />
             <span data-i18n="settings.autoClose">Tự đóng profile khi test xong</span>
