@@ -78,14 +78,30 @@ window.DRender = (() => {
 
   function siteCell(site) {
     if (!site) return '<span class="site-pending">-</span>';
-    const cls = { pending: 'site-pending', skipped: 'site-skipped', pass: 'site-pass', fail: 'site-fail' }[site.state] || 'site-pending';
-    const txt =
-      site.state === 'pending'
-        ? t('detail.sitePending')
-        : site.state === 'skipped'
-          ? t('detail.siteSkipped')
-          : site.value || site.state;
-    return `<span class="site-cell ${cls}">${esc(txt)}</span>`;
+    if (site.state === 'pending') {
+      return `<span class="site-cell site-pending">${esc(t('detail.sitePending'))}</span>`;
+    }
+    if (site.state === 'skipped') {
+      return `<span class="site-cell site-skipped">${esc(t('detail.siteSkipped'))}</span>`;
+    }
+
+    // Hien tung dong + mau xanh/do theo pass tung field
+    if (Array.isArray(site.lines) && site.lines.length) {
+      const rows = site.lines
+        .filter((l) => !l.selector || ['outerWidth', 'outerHeight', 'innerWidth', 'innerHeight', 'dpr'].includes(l.label))
+        .map((l) => {
+          const lineCls =
+            l.pass === true ? 'site-line-pass' : l.pass === false ? 'site-line-fail' : 'site-line-na';
+          const hint = l.pass === false && l.expected != null ? ` title="config: ${esc(l.expected)}"` : '';
+          return `<div class="site-line ${lineCls}"${hint}><span class="site-line-k">${esc(l.label)}</span><span class="site-line-v">${esc(l.value)}</span></div>`;
+        })
+        .join('');
+      const wrapCls = site.state === 'pass' ? 'site-pass' : site.state === 'fail' ? 'site-fail' : '';
+      return `<div class="site-cell site-lines ${wrapCls}">${rows}</div>`;
+    }
+
+    const cls = { pass: 'site-pass', fail: 'site-fail' }[site.state] || 'site-pending';
+    return `<span class="site-cell ${cls}">${esc(site.value || site.state)}</span>`;
   }
 
   function table() {

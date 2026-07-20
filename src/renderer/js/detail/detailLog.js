@@ -74,11 +74,31 @@ window.DetailLog = (() => {
         break;
       }
 
-      case 'site-done': {
+      case 'site-result': {
         const r = DStore.record(evt.uuid);
-        Object.values(r.rows).forEach((row) => {
-          if (row.sites && row.sites[evt.siteKey]) row.sites[evt.siteKey].state = evt.state;
-        });
+        const row = r.rows[evt.checkKey];
+        if (row?.sites) {
+          row.sites[evt.siteKey] = {
+            state: evt.state,
+            value: evt.value || '',
+            pass: evt.pass,
+            lines: evt.lines || null,
+          };
+        }
+        if (S().current === evt.uuid) draw.table();
+        break;
+      }
+
+      case 'site-done': {
+        // Chi danh skipped khi pipeline bao skipped; khong ghi de pass/fail.
+        if (evt.state === 'skipped') {
+          const r = DStore.record(evt.uuid);
+          Object.values(r.rows).forEach((row) => {
+            if (row.sites && row.sites[evt.siteKey]) {
+              row.sites[evt.siteKey] = { state: 'skipped', value: '-' };
+            }
+          });
+        }
         if (S().current === evt.uuid) draw.table();
         break;
       }

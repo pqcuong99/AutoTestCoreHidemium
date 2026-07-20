@@ -107,6 +107,14 @@
 .site-pass { color: #86efac; }
 .site-fail { color: #fca5a5; }
 
+.site-lines { display: flex; flex-direction: column; gap: 2px; font-family: Consolas, monospace; }
+.site-line { display: flex; gap: 6px; padding: 1px 4px; border-radius: 3px; line-height: 1.45; }
+.site-line-k { color: #64748b; flex: none; }
+.site-line-v { word-break: break-all; }
+.site-line-pass { background: rgba(34, 197, 94, 0.18); color: #86efac; }
+.site-line-fail { background: rgba(239, 68, 68, 0.22); color: #fca5a5; }
+.site-line-na { color: #94a3b8; }
+
 .dl-log-head {
   padding: 6px 14px; font-size: 10px; text-transform: uppercase; letter-spacing: .6px;
   color: var(--muted); border-top: 1px solid var(--border); background: var(--bg-2);

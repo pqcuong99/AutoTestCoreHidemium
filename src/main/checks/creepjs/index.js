@@ -3,48 +3,55 @@
  *
  * URL: https://abrahamjuliot.github.io/creepjs/
  *
- * Nhiem vu:
- *   - Mo tab toi CreepJS qua CDP (web_socket tu openProfile)
- *   - Doc gia tri fingerprint thuc te theo tung checkKey da tick
- *   - Tra ve ket qua de pipeline ghi vao lane.ctx.rows[*].sites.creepjs
- *
- * Chua implement scrape — chi scaffold de viet logic.
+ * Hien tai: Screen (Playwright CDP + select #creep-resize, so sanh config, highlight xanh/do).
+ * Muc khac se them file rieng trong folder nay.
  */
 const { WEBSITES } = require('../../../shared/websites');
+const { checkScreen } = require('./screen');
 
 const SITE = WEBSITES.find((w) => w.key === 'creepjs');
 
+/** Muc check da ho tro tren CreepJS */
+const HANDLERS = {
+  screen: checkScreen,
+};
+
 /**
- * @param {string[]} checkKeys  cac muc check dang tick
+ * @param {string[]} checkKeys
  * @param {{
- *   openData: object,          // data tu openProfile (remote_port, web_socket, ...)
- *   configMap: object,         // config.hidemium da decode
+ *   openData: object,
+ *   configMap: object,
  *   signal: AbortSignal,
  *   emit: (e:object)=>void,
  *   uuid: string,
  *   step: (msg:string, kind?:string)=>void,
  * }} ctx
- * @returns {Promise<Record<string, { state:string, value:string, pass?:boolean }>>}
- *   map checkKey -> ket qua site creepjs
+ * @returns {Promise<Record<string, { state:string, value:string, pass?:boolean, lines?:Array }>>}
  */
 async function run(checkKeys, ctx) {
   const { signal, step } = ctx;
-
   if (signal?.aborted) throw new Error('aborted');
 
-  step(`CreepJS: mo ${SITE.url}...`);
-
-  // TODO: ket noi CDP qua ctx.openData.web_socket / remote_port
-  // TODO: navigate toi SITE.url, doi page load xong
-  // TODO: extract gia tri theo tung checkKey (screen, platform, webgl, ...)
-  // TODO: so sanh voi cot B (config) neu can -> pass/fail
-
   const results = {};
+  const supported = checkKeys.filter((k) => HANDLERS[k]);
+
   for (const key of checkKeys) {
-    results[key] = { state: 'skipped', value: '-' };
+    if (!HANDLERS[key]) {
+      results[key] = { state: 'skipped', value: '-' };
+    }
   }
 
-  step('CreepJS: chua implement scrape — bo qua', 'warn');
+  if (!supported.length) {
+    step('CreepJS: khong co muc check nao duoc ho tro (vd Screen) — bo qua', 'warn');
+    return results;
+  }
+
+  // Screen can 1 lan mo trang — chay handler tung muc (sau nay co the gom chung 1 tab).
+  for (const key of supported) {
+    if (signal?.aborted) throw new Error('aborted');
+    results[key] = await HANDLERS[key](ctx);
+  }
+
   return results;
 }
 

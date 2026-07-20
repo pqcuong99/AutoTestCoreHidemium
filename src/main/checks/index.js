@@ -107,6 +107,7 @@ async function runProfileCheck(lane, checkKeys, ctx) {
         emit,
         uuid,
         step,
+        options,
       });
       lane.assertOwns(uuid);
 
@@ -121,9 +122,10 @@ async function runProfileCheck(lane, checkKeys, ctx) {
           value: r.value,
           pass: r.pass,
           state: r.state,
+          lines: r.lines || null,
         });
       }
-      emit({ type: 'site-done', uuid, siteKey: w.key, state: 'done' });
+      emit({ type: 'site-done', uuid, siteKey: w.key });
     }
 
     return { ok: true, status: t('err.pass'), rows: lane.ctx.rows };
