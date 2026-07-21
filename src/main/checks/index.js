@@ -17,11 +17,13 @@ const { t } = require('../../shared/i18n');
 const { resolve: resolvePlatform } = require('../../shared/platformPolicy');
 const creepjs = require('./creepjs');
 const browserleaks = require('./browserleaks');
+const browserscan = require('./browserscan');
 
-/** Site runner kieu run(checkKeys, ctx) — CreepJS / BrowserLeaks. */
+/** Site runner kieu run(checkKeys, ctx) — CreepJS / BrowserLeaks / BrowserScan. */
 const SITE_RUNNERS = {
   [creepjs.key]: creepjs,
   [browserleaks.key]: browserleaks,
+  [browserscan.key]: browserscan,
 };
 
 /** Site kieu scrape + apply — sannysoft / iphey (nhanh son). */
