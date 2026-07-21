@@ -92,7 +92,16 @@ window.DetailLog = (() => {
       }
 
       case 'site-done': {
-        // Chi ve lai — KHONG ghi de state='done' (se mat value/pass/fail)
+        // Chi ve lai — KHONG ghi de state='done' (se mat value/pass/fail).
+        // Chi danh skipped khi pipeline bao skipped.
+        if (evt.state === 'skipped') {
+          const r = DStore.record(evt.uuid);
+          Object.values(r.rows).forEach((row) => {
+            if (row.sites && row.sites[evt.siteKey]) {
+              row.sites[evt.siteKey] = { state: 'skipped', value: '-' };
+            }
+          });
+        }
         if (S().current === evt.uuid) draw.table();
         break;
       }

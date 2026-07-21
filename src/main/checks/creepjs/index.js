@@ -1,50 +1,136 @@
 /**
  * CHECK LOGIC CHO TRANG CREEPJS.
  *
- * URL: https://abrahamjuliot.github.io/creepjs/
- *
- * Nhiem vu:
- *   - Mo tab toi CreepJS qua CDP (web_socket tu openProfile)
- *   - Doc gia tri fingerprint thuc te theo tung checkKey da tick
- *   - Tra ve ket qua de pipeline ghi vao lane.ctx.rows[*].sites.creepjs
- *
- * Chua implement scrape — chi scaffold de viet logic.
+ * Mo 1 lan CDP + 1 tab CreepJS, chay lan luot cac muc da tick.
  */
 const { WEBSITES } = require('../../../shared/websites');
+const { openPage, release } = require('../../browserCdp');
+const { CREEPJS_URL, LOAD_TIMEOUT_MS, isCreepjsReady } = require('./helpers');
+const { checkScreen } = require('./screen');
+const { checkPlatformNavigator, checkPlatformUa } = require('./platform');
+const {
+  checkHardware,
+  checkDeviceMemory,
+  checkMaxTouchPoints,
+  checkBrands,
+} = require('./navigatorExtras');
+const {
+  checkPlatformVersion,
+  checkUaFullVersion,
+  checkModel,
+} = require('./userAgentData');
+const {
+  checkFullVersionList,
+  checkFormFactors,
+} = require('./extraUserAgentData');
+const { checkBattery, checkNetwork } = require('./systemStatus');
+const { checkFont } = require('./font');
+const { checkWebgl } = require('./webgl');
 
 const SITE = WEBSITES.find((w) => w.key === 'creepjs');
 
-/**
- * @param {string[]} checkKeys  cac muc check dang tick
- * @param {{
- *   openData: object,          // data tu openProfile (remote_port, web_socket, ...)
- *   configMap: object,         // config.hidemium da decode
- *   signal: AbortSignal,
- *   emit: (e:object)=>void,
- *   uuid: string,
- *   step: (msg:string, kind?:string)=>void,
- * }} ctx
- * @returns {Promise<Record<string, { state:string, value:string, pass?:boolean }>>}
- *   map checkKey -> ket qua site creepjs
- */
-async function run(checkKeys, ctx) {
-  const { signal, step } = ctx;
+/** Handler nhan (page, configMap, ctx) — page da o CreepJS. */
+const HANDLERS = {
+  screen: checkScreen,
+  platform_navigator: checkPlatformNavigator,
+  platform_ua: checkPlatformUa,
+  hardware: checkHardware,
+  device_memory: checkDeviceMemory,
+  max_touch_points: checkMaxTouchPoints,
+  brands: checkBrands,
+  platform_version: checkPlatformVersion,
+  ua_full_version: checkUaFullVersion,
+  model: checkModel,
+  full_version_list: checkFullVersionList,
+  form_factors: checkFormFactors,
+  battery: checkBattery,
+  network: checkNetwork,
+  font: checkFont,
+  webgl: checkWebgl,
+};
 
+async function run(checkKeys, ctx) {
+  const { openData, configMap, signal, step, options, emit, uuid } = ctx;
   if (signal?.aborted) throw new Error('aborted');
 
-  step(`CreepJS: mo ${SITE.url}...`);
-
-  // TODO: ket noi CDP qua ctx.openData.web_socket / remote_port
-  // TODO: navigate toi SITE.url, doi page load xong
-  // TODO: extract gia tri theo tung checkKey (screen, platform, webgl, ...)
-  // TODO: so sanh voi cot B (config) neu can -> pass/fail
-
   const results = {};
+  const supported = checkKeys.filter((k) => HANDLERS[k]);
+
   for (const key of checkKeys) {
-    results[key] = { state: 'skipped', value: '-' };
+    if (!HANDLERS[key]) results[key] = { state: 'skipped', value: '-' };
   }
 
-  step('CreepJS: chua implement scrape — bo qua', 'warn');
+  if (!supported.length) {
+    step('CreepJS: khong co muc check nao duoc ho tro — bo qua', 'warn');
+    return results;
+  }
+
+  const emitRealtimeResult = (checkKey, result) => {
+    if (typeof emit !== 'function' || !uuid) return;
+    emit({
+      type: 'site-result',
+      uuid,
+      checkKey,
+      siteKey: 'creepjs',
+      value: result?.value ?? '',
+      pass: result?.pass,
+      state: result?.state || 'fail',
+      lines: result?.lines || null,
+    });
+  };
+
+  let session;
+  try {
+    step('CreepJS: ket noi CDP + tim tab creepjs...');
+    session = await openPage(openData, {
+      reuseUrl: CREEPJS_URL,
+      pruneExtraMatchingPages: true,
+      keepMatchingPages: 1,
+    });
+    const { page } = session;
+    page.setDefaultTimeout(LOAD_TIMEOUT_MS);
+
+    if (signal?.aborted) throw new Error('aborted');
+
+    const onCreepjs = /^https?:\/\/abrahamjuliot\.github\.io\/creepjs\/?/i.test(page.url() || '');
+    if (!onCreepjs) {
+      step(`CreepJS: goto ${CREEPJS_URL}`);
+      await page.goto(CREEPJS_URL, { waitUntil: 'domcontentloaded', timeout: LOAD_TIMEOUT_MS });
+    } else if (await isCreepjsReady(page)) {
+      step('CreepJS: dung lai tab da mo, du lieu san sang');
+    } else {
+      step('CreepJS: tab cu chua load xong — reload');
+      await page.reload({ waitUntil: 'domcontentloaded', timeout: LOAD_TIMEOUT_MS });
+    }
+
+    for (const key of supported) {
+      if (signal?.aborted) throw new Error('aborted');
+      try {
+        results[key] = await HANDLERS[key](page, configMap, ctx);
+        emitRealtimeResult(key, results[key]);
+      } catch (err) {
+        if (err.message === 'aborted') throw err;
+        step(`CreepJS ${key} loi: ${err.message}`, 'err');
+        results[key] = { state: 'fail', value: err.message, pass: false, lines: [] };
+        emitRealtimeResult(key, results[key]);
+      }
+    }
+
+    const keepPage = !(options && options.autoClose);
+    await release(session, { keepPage });
+    session = null;
+  } catch (err) {
+    if (err.message === 'aborted') throw err;
+    step('CreepJS loi: ' + err.message, 'err');
+    for (const key of supported) {
+      if (!results[key]) {
+        results[key] = { state: 'fail', value: err.message, pass: false, lines: [] };
+      }
+    }
+  } finally {
+    if (session) await release(session, { keepPage: false });
+  }
+
   return results;
 }
 

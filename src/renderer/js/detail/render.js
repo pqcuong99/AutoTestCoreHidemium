@@ -84,6 +84,25 @@ window.DRender = (() => {
     const SH = window.SiteHighlight;
 
     if (Array.isArray(structuredLines) && structuredLines.length) {
+      // CreepJS: { label, value, pass } — minh
+      const creepStyle = structuredLines.every(
+        (row) => row && ('label' in row || 'pass' in row) && !('text' in row) && !('status' in row)
+      );
+      if (creepStyle) {
+        return structuredLines
+          .map((l) => {
+            const lineCls =
+              l.pass === true ? 'site-line-pass' : l.pass === false ? 'site-line-fail' : 'site-line-na';
+            const hint =
+              l.pass === false && l.expected != null ? ` title="config: ${esc(l.expected)}"` : '';
+            const val = l.value === '' || l.value == null ? '—' : l.value;
+            const text = `${l.label}: ${val}`;
+            return `<div class="site-line ${lineCls}"${hint}>${esc(text)}</div>`;
+          })
+          .join('');
+      }
+
+      // BrowserLeaks / SiteHighlight: { text, status }
       return structuredLines
         .map((row) => {
           const status = row.status || 'ok';
@@ -152,7 +171,14 @@ window.DRender = (() => {
       return `<span class="site-cell ${cls}"><span class="site-cell-plain">${esc(txt)}</span></span>`;
     }
 
-    return `<div class="site-cell ${cls}">${siteLinesHtml(txt, site.lines)}</div>`;
+    const body = siteLinesHtml(txt, site.lines);
+    const wrapCls =
+      Array.isArray(site.lines) &&
+      site.lines.length &&
+      site.lines.every((row) => row && ('label' in row || 'pass' in row) && !('text' in row))
+        ? `${cls} site-lines`
+        : cls;
+    return `<div class="site-cell ${wrapCls}">${body}</div>`;
   }
 
   function table() {

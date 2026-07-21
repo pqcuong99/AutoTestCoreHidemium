@@ -134,6 +134,7 @@ async function runProfileCheck(lane, checkKeys, ctx) {
         step,
         platform,
         targetOs: platform.id,
+        options,
       });
       lane.assertOwns(uuid);
 
