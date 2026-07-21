@@ -5,7 +5,7 @@
  *   1. openProfile qua Local API   -> lay profile_path / remote_port / web_socket
  *   2. Doc + decode config.hidemium -> configMap
  *   3. Build COT B (config) cho cac muc check da tick
- *   4. (TODO) Lay gia tri thuc te tu cac website -> cac cot sannysoft/iphey/...
+ *   4. Lay gia tri thuc te tu cac website -> cot sannysoft/iphey/browserleaks/creepjs/...
  *
  * MOI ghi du lieu deu qua lane.assertOwns(uuid) va lane.ctx -> khong the lan sang lane khac.
  */
@@ -18,10 +18,16 @@ const { resolve: resolvePlatform } = require('../../shared/platformPolicy');
 const creepjs = require('./creepjs');
 const browserleaks = require('./browserleaks');
 
-/** Site checker theo key — them website moi thi dang ky o day. */
+/** Site runner kieu run(checkKeys, ctx) — CreepJS / BrowserLeaks. */
 const SITE_RUNNERS = {
   [creepjs.key]: creepjs,
   [browserleaks.key]: browserleaks,
+};
+
+/** Site kieu scrape + apply — sannysoft / iphey (nhanh son). */
+const SITES = {
+  sannysoft: require('./bot_sannysoft'),
+  iphey: require('./iphey'),
 };
 
 /**
@@ -99,17 +105,28 @@ async function runProfileCheck(lane, checkKeys, ctx) {
       checkKeys,
     });
 
-    // ---------- 4. Lay gia tri that tu tung website ----------
-    // Site co runner rieng (vd creepjs/) thi goi run(); con lai skipped.
-    // Moi ghi lane.ctx.rows deu qua lane.assertOwns(uuid).
+    // ---------- 4. Lay gia tri that tu tung website (thu tu WEBSITES) ----------
     for (const w of WEBSITES) {
       abortCheck();
       lane.assertOwns(uuid);
 
       const runner = SITE_RUNNERS[w.key];
-      if (!runner) {
+      if (runner?.run) {
+        const siteResults = await runner.run(checkKeys, {
+          openData: lane.ctx.openData,
+          configMap: lane.ctx.configMap,
+          signal,
+          emit,
+          uuid,
+          step,
+          platform,
+          targetOs: platform.id,
+          options,
+        });
+        lane.assertOwns(uuid);
+
         for (const key of checkKeys) {
-          const r = { state: 'skipped', value: '-', pass: false };
+          const r = siteResults[key] || { state: 'skipped', value: '-' };
           lane.ctx.rows[key].sites[w.key] = r;
           emit({
             type: 'site-result',
@@ -117,29 +134,40 @@ async function runProfileCheck(lane, checkKeys, ctx) {
             checkKey: key,
             siteKey: w.key,
             value: r.value,
-            pass: false,
-            state: 'skipped',
+            pass: r.pass,
+            state: r.state,
+            lines: r.lines || null,
           });
         }
         emit({ type: 'site-done', uuid, siteKey: w.key });
         continue;
       }
 
-      const siteResults = await runner.run(checkKeys, {
-        openData: lane.ctx.openData,
-        configMap: lane.ctx.configMap,
-        signal,
-        emit,
-        uuid,
-        step,
-        platform,
-        targetOs: platform.id,
-        options,
-      });
-      lane.assertOwns(uuid);
+      const site = SITES[w.key];
+      if (site?.scrape && site?.apply) {
+        const res = await site.scrape({
+          openData: lane.ctx.openData,
+          checkKeys,
+          signal,
+          log: step,
+        });
+        lane.assertOwns(uuid);
+        site.apply(lane, checkKeys, res, emit, uuid);
+        emit({
+          type: 'detail-rows',
+          uuid,
+          profileName: opened.data.profile_name || name,
+          rows: lane.ctx.rows,
+          checkKeys,
+        });
+        if (!res.ok) {
+          step(t(site.failKey || `check.${w.key}Fail`, { error: res.error || '' }), 'err');
+        }
+        continue;
+      }
 
       for (const key of checkKeys) {
-        const r = siteResults[key] || { state: 'skipped', value: '-' };
+        const r = { state: 'skipped', value: '-', pass: false };
         lane.ctx.rows[key].sites[w.key] = r;
         emit({
           type: 'site-result',
@@ -147,12 +175,11 @@ async function runProfileCheck(lane, checkKeys, ctx) {
           checkKey: key,
           siteKey: w.key,
           value: r.value,
-          pass: r.pass,
-          state: r.state,
-          lines: r.lines || null,
+          pass: false,
+          state: 'skipped',
         });
       }
-      emit({ type: 'site-done', uuid, siteKey: w.key });
+      emit({ type: 'site-done', uuid, siteKey: w.key, state: 'skipped' });
     }
 
     return { ok: true, status: t('err.pass'), rows: lane.ctx.rows };
@@ -168,4 +195,4 @@ async function runProfileCheck(lane, checkKeys, ctx) {
   }
 }
 
-module.exports = { runProfileCheck };
+module.exports = { runProfileCheck, SITES, SITE_RUNNERS };

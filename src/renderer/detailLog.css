@@ -186,6 +186,7 @@ body.dl-resizing-row * { cursor: row-resize !important; user-select: none !impor
   min-width: 0;
 }
 .site-cell > .kv { width: 100%; }
+.site-cell.site-kv { color: inherit; }
 .site-cell-plain {
   white-space: pre-wrap;
   word-break: break-word;
@@ -219,22 +220,6 @@ body.dl-resizing-row * { cursor: row-resize !important; user-select: none !impor
 .site-cell .kv-missing-web .kv-k,
 .site-cell .kv-missing-web .kv-v { color: #e9d5ff; }
 .site-cell .kv-info .kv-v { color: #94a3b8; }
-
-/* CreepJS line highlight (pass / fail / na) */
-.site-lines { display: flex; flex-direction: column; gap: 4px; font-family: Consolas, ui-monospace, monospace; }
-.site-line {
-  display: block;
-  padding: 4px 8px;
-  border-radius: 4px;
-  line-height: 1.4;
-  font-size: 11px;
-  white-space: normal;
-  overflow-wrap: break-word;
-  word-break: normal;
-}
-.site-line-pass { background: rgba(34, 197, 94, 0.18); color: #86efac; }
-.site-line-fail { background: rgba(239, 68, 68, 0.22); color: #fca5a5; }
-.site-line-na { background: rgba(148, 163, 184, 0.08); color: #94a3b8; }
 
 .dl-log-head {
   padding: 6px 14px; font-size: 10px; text-transform: uppercase; letter-spacing: .6px;

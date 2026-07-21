@@ -1,6 +1,7 @@
 /**
  * CHE DO TEST LUONG.
  *
+ * Chi kiem tra profile mo/dong + lane chay duoc — khong doc config, khong scrape site.
  * Moi profile: mo -> doi N giay -> dong.
  */
 const { openProfile, closeProfile } = require('../hidemiumApi');

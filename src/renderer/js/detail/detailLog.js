@@ -75,30 +75,34 @@ window.DetailLog = (() => {
       }
 
       case 'site-result': {
-        // Cap nhat tung o: value that tu scrape + pass/fail
+        // Cap nhat tung o: value + pass/fail + lines (SiteHighlight) / fields (sannysoft/iphey)
         const r = DStore.record(evt.uuid);
         if (!r.rows[evt.checkKey]) {
           r.rows[evt.checkKey] = { config: null, sites: {} };
         }
         if (!r.rows[evt.checkKey].sites) r.rows[evt.checkKey].sites = {};
+        const prev = r.rows[evt.checkKey].sites[evt.siteKey] || {};
         r.rows[evt.checkKey].sites[evt.siteKey] = {
           state: evt.state || (evt.pass ? 'pass' : 'fail'),
           value: evt.value ?? '',
-          pass: !!evt.pass,
-          lines: Array.isArray(evt.lines) ? evt.lines : null,
+          pass: evt.pass != null ? !!evt.pass : prev.pass,
+          lines: Array.isArray(evt.lines) ? evt.lines : prev.lines || null,
+          fields: Array.isArray(evt.fields) ? evt.fields : prev.fields || [],
         };
         if (S().current === evt.uuid) draw.table();
         break;
       }
 
       case 'site-done': {
-        // Chi ve lai — KHONG ghi de state='done' (se mat value/pass/fail).
-        // Chi danh skipped khi pipeline bao skipped.
-        if (evt.state === 'skipped') {
+        // Khong ghi de pass/fail bang 'done'. Chi xu ly skipped / fail toan cot.
+        if (evt.state === 'skipped' || evt.state === 'fail') {
           const r = DStore.record(evt.uuid);
           Object.values(r.rows).forEach((row) => {
-            if (row.sites && row.sites[evt.siteKey]) {
-              row.sites[evt.siteKey] = { state: 'skipped', value: '-' };
+            if (!row.sites || !row.sites[evt.siteKey]) return;
+            if (evt.state === 'skipped') {
+              row.sites[evt.siteKey] = { state: 'skipped', value: '-', fields: [], lines: null };
+            } else if (row.sites[evt.siteKey].state === 'pending') {
+              row.sites[evt.siteKey].state = 'fail';
             }
           });
         }
@@ -208,12 +212,24 @@ window.DetailLog = (() => {
       if (e.key === 'Escape' && isOpen) close();
     });
 
-    // Bam "+ N truong nua..." -> xo het field cua o do
+    // Bam "+ N truong nua..." -> xo het field (cot Config hoac cot site)
     document.getElementById('dl-tbody').addEventListener('click', (e) => {
       if (!e.target.classList.contains('kv-more')) return;
       const tr = e.target.closest('tr');
-      const row = DStore.current()?.rows?.[tr.dataset.key];
-      if (row) tr.querySelector('.cell-b').innerHTML = DRender.fieldsHtmlAll(row.config);
+      const td = e.target.closest('td');
+      const row = DStore.current()?.rows?.[tr?.dataset.key];
+      if (!row || !td) return;
+      if (td.classList.contains('cell-b')) {
+        td.innerHTML = DRender.fieldsHtmlAll(row.config);
+        return;
+      }
+      if (td.classList.contains('cell-site') && td.dataset.site) {
+        const site = row.sites?.[td.dataset.site];
+        if (site?.fields?.length) {
+          const cls = { pass: 'site-pass', fail: 'site-fail' }[site.state] || '';
+          td.innerHTML = `<div class="site-cell site-kv ${cls}">${DRender.fieldsHtmlAll(site.fields)}</div>`;
+        }
+      }
     });
 
     // Bam header cot website -> mo web that (bo qua khi bam thanh resize)

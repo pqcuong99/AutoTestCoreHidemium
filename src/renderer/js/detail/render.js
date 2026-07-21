@@ -61,48 +61,73 @@ window.DRender = (() => {
     if (window.DTableResize) DTableResize.applyColumns();
   }
 
-  function fieldsHtml(cfg) {
-    if (!cfg || !cfg.found) return `<span class="cell-missing">${esc(t('detail.noConfig'))}</span>`;
-    const MAX = 6;
-    const shown = cfg.fields.slice(0, MAX);
+  const FIELD_MAX = 6;
+
+  /** Bo prefix [HARDWARE] / [BROWSER] ... trong label. */
+  function cleanLabel(label) {
+    return String(label || '')
+      .replace(/^\[[^\]]+\]\s*/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  /** Chuan hoa fields: { label, value } giong cot Config. */
+  function normalizeFields(fields) {
+    if (!Array.isArray(fields)) return [];
+    return fields
+      .map((f) => ({
+        label: cleanLabel(f.label),
+        value: String(f.value ?? '').trim(),
+      }))
+      .filter((f) => f.value !== '');
+  }
+
+  /** Parse chuoi "label: value" (1 hoac nhieu dong), strip [SECTION]. */
+  function parseValueToFields(value) {
+    return String(value || '')
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line) => {
+        const cleaned = line.replace(/^\[[^\]]+\]\s*/g, '');
+        const i = cleaned.indexOf(':');
+        if (i < 0) return { label: '', value: cleaned.trim() };
+        return {
+          label: cleaned.slice(0, i).trim(),
+          value: cleaned.slice(i + 1).trim(),
+        };
+      })
+      .filter((f) => f.value);
+  }
+
+  function kvListHtml(fields, { max = FIELD_MAX } = {}) {
+    const list = normalizeFields(fields);
+    if (!list.length) return '';
+    const shown = list.slice(0, max);
     let html = shown
       .map((f) => `<div class="kv"><span class="kv-k">${esc(f.label)}</span><span class="kv-v">${esc(f.value)}</span></div>`)
       .join('');
-    if (cfg.fields.length > MAX) {
-      html += `<div class="kv-more" data-expand="1">${esc(t('detail.moreFields', { n: cfg.fields.length - MAX }))}</div>`;
+    if (list.length > max) {
+      html += `<div class="kv-more" data-expand="1">${esc(t('detail.moreFields', { n: list.length - max }))}</div>`;
     }
     return html;
   }
 
-  function fieldsHtmlAll(cfg) {
-    return cfg.fields
-      .map((f) => `<div class="kv"><span class="kv-k">${esc(f.label)}</span><span class="kv-v">${esc(f.value)}</span></div>`)
-      .join('');
+  function fieldsHtml(cfg) {
+    if (!cfg || !cfg.found) return `<span class="cell-missing">${esc(t('detail.noConfig'))}</span>`;
+    return kvListHtml(cfg.fields);
   }
 
+  function fieldsHtmlAll(fieldsOrCfg) {
+    const fields = Array.isArray(fieldsOrCfg) ? fieldsOrCfg : fieldsOrCfg?.fields || [];
+    return kvListHtml(fields, { max: fields.length });
+  }
+
+  /** BrowserLeaks / CreepJS: lines SiteHighlight { text, status }. */
   function siteLinesHtml(txt, structuredLines) {
     const SH = window.SiteHighlight;
 
     if (Array.isArray(structuredLines) && structuredLines.length) {
-      // CreepJS: { label, value, pass } — minh
-      const creepStyle = structuredLines.every(
-        (row) => row && ('label' in row || 'pass' in row) && !('text' in row) && !('status' in row)
-      );
-      if (creepStyle) {
-        return structuredLines
-          .map((l) => {
-            const lineCls =
-              l.pass === true ? 'site-line-pass' : l.pass === false ? 'site-line-fail' : 'site-line-na';
-            const hint =
-              l.pass === false && l.expected != null ? ` title="config: ${esc(l.expected)}"` : '';
-            const val = l.value === '' || l.value == null ? '—' : l.value;
-            const text = `${l.label}: ${val}`;
-            return `<div class="site-line ${lineCls}"${hint}>${esc(text)}</div>`;
-          })
-          .join('');
-      }
-
-      // BrowserLeaks / SiteHighlight: { text, status }
       return structuredLines
         .map((row) => {
           const status = row.status || 'ok';
@@ -148,6 +173,7 @@ window.DRender = (() => {
       .join('');
   }
 
+  /** Cot website: SiteHighlight lines, hoac fields (sannysoft/iphey), hoac value. */
   function siteCell(site) {
     if (!site) return '<span class="site-pending">-</span>';
     const cls =
@@ -158,27 +184,31 @@ window.DRender = (() => {
         fail: 'site-fail',
       }[site.state] || (site.pass ? 'site-pass' : 'site-pending');
 
-    let txt;
     if (site.state === 'pending') {
-      txt = t('detail.sitePending');
-    } else if (site.state === 'skipped') {
-      txt = site.value && site.value !== '-' ? site.value : t('detail.siteSkipped');
-    } else {
-      txt = site.value || t('detail.noData');
+      return `<span class="site-cell ${cls}"><span class="site-cell-plain">${esc(t('detail.sitePending'))}</span></span>`;
     }
 
-    if (site.state === 'pending' || (site.state === 'skipped' && (!site.value || site.value === '-'))) {
-      return `<span class="site-cell ${cls}"><span class="site-cell-plain">${esc(txt)}</span></span>`;
+    if (site.state === 'skipped' && (!site.value || site.value === '-') && !(site.fields && site.fields.length) && !(site.lines && site.lines.length)) {
+      return `<span class="site-cell ${cls}"><span class="site-cell-plain">${esc(t('detail.siteSkipped'))}</span></span>`;
     }
 
-    const body = siteLinesHtml(txt, site.lines);
-    const wrapCls =
-      Array.isArray(site.lines) &&
-      site.lines.length &&
-      site.lines.every((row) => row && ('label' in row || 'pass' in row) && !('text' in row))
-        ? `${cls} site-lines`
-        : cls;
-    return `<div class="site-cell ${wrapCls}">${body}</div>`;
+    // Prefer SiteHighlight structured lines (BrowserLeaks / CreepJS)
+    if (Array.isArray(site.lines) && site.lines.length && site.lines.some((l) => l && (l.text || l.status))) {
+      return `<div class="site-cell ${cls}">${siteLinesHtml(site.value, site.lines)}</div>`;
+    }
+
+    // sannysoft / iphey: fields { label, value }
+    let fields = normalizeFields(site.fields);
+    if (!fields.length && site.value && site.value !== '-') fields = parseValueToFields(site.value);
+    if (fields.length) {
+      return `<div class="site-cell site-kv ${cls}">${kvListHtml(fields)}</div>`;
+    }
+
+    const txt =
+      site.state === 'fail'
+        ? site.value || site.state
+        : site.value || t('detail.noData');
+    return `<span class="site-cell ${cls}"><span class="site-cell-plain">${esc(txt)}</span></span>`;
   }
 
   function table() {
@@ -217,7 +247,9 @@ window.DRender = (() => {
       .map((key) => {
         const item = CHECK_ITEMS.find((i) => i.key === key) || { label: key, group: '' };
         const row = r.rows[key];
-        const siteCells = WEBSITES.map((w) => `<td>${siteCell(row?.sites?.[w.key])}</td>`).join('');
+        const siteCells = WEBSITES.map(
+          (w) => `<td class="cell-site" data-site="${esc(w.key)}">${siteCell(row?.sites?.[w.key])}</td>`
+        ).join('');
         return `<tr data-key="${esc(key)}">
           <td class="cell-a">${esc(item.label)}<small>${esc(groupLabel(item.group))}</small></td>
           <td class="cell-b">${row ? fieldsHtml(row.config) : `<span class="cell-missing">${esc(t('detail.noData'))}</span>`}</td>
@@ -253,5 +285,5 @@ window.DRender = (() => {
     logs();
   }
 
-  return { all, head, lanes, profiles, table, logs, header, fieldsHtmlAll, esc };
+  return { all, head, lanes, profiles, table, logs, header, fieldsHtmlAll, siteCell, esc };
 })();
