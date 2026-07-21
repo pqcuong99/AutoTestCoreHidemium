@@ -1,8 +1,8 @@
 /* Popup Detail Log - overlay ngay trong cua so chinh */
 
 /*
- * Chi phu phan DUOI topbar (top: var).
- * Topbar + nut Dung luon o tren, khong bi che, khong can nut float de de.
+ * Overlay trong suot (pointer-events: none) — van tuong tac topbar / bang profile.
+ * Modal floating: keo header, keo goc/canh de resize, maximize.
  */
 .dl-overlay {
   position: fixed;
@@ -11,33 +11,84 @@
   right: 0;
   bottom: 0;
   z-index: 100;
-  background: rgba(2, 6, 23, .72);
-  display: flex;
-  align-items: stretch;
-  justify-content: center;
-  padding: 12px;
+  background: transparent;
+  pointer-events: none;
+  display: block;
+  padding: 0;
+  overflow: hidden;
 }
 .dl-overlay[hidden] { display: none; }
 
 .dl-modal {
-  width: 100%; height: 100%; max-width: 1500px;
-  background: var(--bg); border: 1px solid var(--border); border-radius: 12px;
-  box-shadow: 0 24px 70px rgba(0, 0, 0, .6);
-  display: flex; flex-direction: column; overflow: hidden;
+  pointer-events: auto;
+  position: absolute;
+  left: 4%;
+  top: 3%;
+  width: 92%;
+  height: 90%;
+  min-width: 480px;
+  min-height: 280px;
+  max-width: none;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, .65);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+.dl-modal.dl-maximized {
+  left: 8px !important;
+  top: 8px !important;
+  width: calc(100% - 16px) !important;
+  height: calc(100% - 16px) !important;
+  border-radius: 10px;
 }
 
 .dl-top {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   padding: 9px 14px; background: var(--bg-2); border-bottom: 1px solid var(--border);
   flex-shrink: 0;
+  cursor: grab;
+  user-select: none;
+}
+.dl-top.dl-dragging { cursor: grabbing; }
+.dl-top .btn,
+.dl-top .mini,
+.dl-top input,
+.dl-top label {
+  cursor: default;
+  user-select: auto;
 }
 .dl-title { display: flex; align-items: center; gap: 10px; font-size: 14px; min-width: 0; }
 .dl-top-right {
-  display: flex; align-items: center; gap: 10px;
+  display: flex; align-items: center; gap: 8px;
   flex-shrink: 0; margin-left: auto;
 }
-.dl-top-right .btn { flex-shrink: 0; }
+.dl-top-right .btn { flex-shrink: 0; padding: 4px 9px; line-height: 1.2; }
 .dl-top-right .mini { white-space: nowrap; }
+
+/* Resize handles */
+.dl-resize {
+  position: absolute;
+  z-index: 5;
+  background: transparent;
+}
+.dl-resize-n { top: 0; left: 8px; right: 8px; height: 6px; cursor: ns-resize; }
+.dl-resize-s { bottom: 0; left: 8px; right: 8px; height: 6px; cursor: ns-resize; }
+.dl-resize-e { top: 8px; right: 0; bottom: 8px; width: 6px; cursor: ew-resize; }
+.dl-resize-w { top: 8px; left: 0; bottom: 8px; width: 6px; cursor: ew-resize; }
+.dl-resize-ne { top: 0; right: 0; width: 12px; height: 12px; cursor: nesw-resize; }
+.dl-resize-nw { top: 0; left: 0; width: 12px; height: 12px; cursor: nwse-resize; }
+.dl-resize-se { bottom: 0; right: 0; width: 14px; height: 14px; cursor: nwse-resize; }
+.dl-resize-sw { bottom: 0; left: 0; width: 12px; height: 12px; cursor: nesw-resize; }
+.dl-modal.dl-maximized .dl-resize { display: none; }
+
+body.dl-win-moving,
+body.dl-win-moving * { cursor: grabbing !important; user-select: none !important; }
+body.dl-win-resizing,
+body.dl-win-resizing * { user-select: none !important; }
 
 .dl-layout { flex: 1; display: flex; min-height: 0; }
 
@@ -75,6 +126,37 @@
 .dl-cur-name { font-size: 14px; font-weight: 600; }
 .dl-cur-uuid { font-family: Consolas, monospace; font-size: 11px; color: var(--muted); margin-top: 2px; }
 .dl-cur-meta { font-size: 11px; color: var(--muted); text-align: right; line-height: 1.6; }
+
+.dl-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  padding: 6px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-2, #0f172a);
+  font-size: 11px;
+  color: var(--muted);
+}
+.dl-legend-label { font-weight: 600; color: #94a3b8; margin-right: 2px; }
+.dl-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.dl-swatch {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  flex: none;
+}
+.dl-swatch-ok { background: rgba(148, 163, 184, 0.25); border: 1px solid #64748b; }
+.dl-swatch-mismatch { background: rgba(220, 38, 38, 0.35); border: 1px solid #fca5a5; }
+.dl-swatch-no-config { background: rgba(217, 119, 6, 0.35); border: 1px solid #fcd34d; }
+.dl-swatch-missing-web { background: rgba(147, 51, 234, 0.35); border: 1px solid #e9d5ff; }
+.dl-swatch-info { background: rgba(100, 116, 139, 0.2); border: 1px solid #64748b; }
 
 .dl-table-wrap {
   flex: 1;

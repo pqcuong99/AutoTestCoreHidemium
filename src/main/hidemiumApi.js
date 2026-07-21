@@ -136,11 +136,18 @@ async function listBrowsers({
 }
 
 /**
- * GET /openProfile?uuid={uuid}
+ * GET /openProfile?uuid={uuid}&restore_session={optional}&command={optional}
+ * @param {object} [opts]
+ * @param {boolean} [opts.restoreSession] — false => restore_session=false (tat khoi phuc tab cu)
+ * @param {string} [opts.command] — Chromium flags (it dung)
  * @returns {{ ok:boolean, data?:object, error?:string, raw?:any }}
  */
-async function openProfile(uuid, { baseUrl = DEFAULT_BASE, signal, timeout } = {}) {
-  const url = `${baseUrl}/openProfile?uuid=${encodeURIComponent(uuid)}`;
+async function openProfile(uuid, { baseUrl = DEFAULT_BASE, signal, timeout, command, restoreSession } = {}) {
+  let url = `${baseUrl}/openProfile?uuid=${encodeURIComponent(uuid)}`;
+  if (restoreSession === false) url += '&restore_session=false';
+  else if (restoreSession === true) url += '&restore_session=true';
+  const cmd = command != null ? String(command).trim() : '';
+  if (cmd) url += `&command=${encodeURIComponent(cmd)}`;
   try {
     const res = await httpGetJson(url, { signal, timeout });
     const body = res.body;

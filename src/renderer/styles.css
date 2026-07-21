@@ -76,6 +76,14 @@ body {
   width: 100%; border: 1px solid var(--border); background: var(--bg); color: var(--text);
   padding: 7px 10px; border-radius: 7px; font-size: 13px;
 }
+.textarea {
+  width: 100%; box-sizing: border-box;
+  border: 1px solid var(--border); background: var(--bg); color: var(--text);
+  padding: 7px 10px; border-radius: 7px; font-size: 12px;
+  font-family: Consolas, ui-monospace, monospace;
+  resize: vertical; min-height: 52px; line-height: 1.4;
+}
+.textarea:focus { outline: none; border-color: #3b82f6; }
 
 /* ---------- Source bar (Cloud / Local) ---------- */
 .filebar {

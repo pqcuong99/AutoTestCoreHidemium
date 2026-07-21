@@ -14,7 +14,9 @@ Highlight từng dòng/key trong ô Detail Log khi so sánh **web vs config**.
 
 Thêm: `ok`, `info` (chỉ hiển thị, vd `config=default`).
 
-## Dùng trong site runner mới (CreepJS, …)
+## Dùng trong site runner (BrowserLeaks + CreepJS)
+
+Cùng contract field → `summarizeFieldResults` → Detail Log:
 
 ```js
 const { summarizeFieldResults } = require('../../shared/siteHighlight');
@@ -33,12 +35,19 @@ const result = summarizeFieldResults(fieldResults, {
 // { state: 'pass'|'fail'|'skipped', value: string, pass: boolean, lines: [{ text, status }] }
 ```
 
-Pipeline đã emit `lines` qua `site-result` — renderer tô màu theo `status`.
+- **BrowserLeaks:** `checks/browserleaks/index.js` → `summarize()`
+- **CreepJS:** `checks/creepjs/helpers.js` → `lineResult` / `infoLine` / `summarizeLines` / `finishCheck`
+
+Pipeline emit `lines` qua `site-result` — renderer tô màu theo `status` (`.kv-mismatch` / `.kv-no-config` / …). Không còn nhánh CSS `site-line-*` riêng cho CreepJS.
+
+## Chú thích màu (Detail Log)
+
+Thanh legend trên bảng: khớp · lệch config (đỏ) · thiếu config (vàng) · thiếu trên web (tím) · chỉ hiển thị (xám).
 
 ## Renderer
 
 - Script: `siteHighlight.js` (đã gắn trong `index.html`)
-- CSS: `.kv-mismatch` / `.kv-no-config` / `.kv-missing-web` trong `detailLog.css`
+- CSS: `.kv-mismatch` / `.kv-no-config` / `.kv-missing-web` + `.dl-legend` trong `detailLog.css`
 - Fallback: nếu không có `lines[]`, parse suffix `✗` / `⚠ …` từ `value`
 
 ## Không làm gì

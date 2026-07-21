@@ -114,7 +114,13 @@
           <p class="field-hint" data-i18n="settings.targetOs.hint">Chọn OS fingerprint để áp policy test. Hiện chỉ Windows.</p>
         </div>
 
-
+        <div class="field">
+          <label class="check-item settings-toggle">
+            <input type="checkbox" id="chk-disable-restore-session" checked />
+            <span data-i18n="settings.disableRestoreSession">Tắt Restore Session khi mở profile</span>
+          </label>
+          <p class="field-hint" data-i18n="settings.disableRestoreSession.hint">Bật: gửi restore_session=false — không khôi phục tab phiên trước.</p>
+        </div>
 
         <div class="field">
           <label class="check-item settings-toggle">
@@ -148,8 +154,8 @@
 
   <!-- ============ POPUP DETAIL LOG ============ -->
   <div id="dl-overlay" class="dl-overlay" hidden>
-    <div class="dl-modal">
-      <header class="dl-top">
+    <div id="dl-modal" class="dl-modal">
+      <header class="dl-top" id="dl-drag">
         <div class="dl-title">
           <strong data-i18n="detail.title">Detail Log</strong>
           <span id="dl-run" class="badge">runId: -</span>
@@ -157,7 +163,8 @@
         <div class="dl-top-right">
           <span id="dl-progress" class="progress-text" data-i18n="status.ready">Sẵn sàng</span>
           <label class="mini"><input type="checkbox" id="dl-follow" checked /> <span data-i18n="detail.follow">Bám theo luồng đang chạy</span></label>
-          <button id="dl-close" class="btn btn-ghost" data-i18n-title="detail.close" title="Đóng (Esc)">&#10005;</button>
+          <button type="button" id="dl-maximize" class="btn btn-ghost" data-i18n-title="detail.maximize" title="Phóng to / thu nhỏ">&#9633;</button>
+          <button type="button" id="dl-close" class="btn btn-ghost" data-i18n-title="detail.close" title="Đóng (Esc)">&#10005;</button>
         </div>
       </header>
 
@@ -178,6 +185,30 @@
             <div id="dl-cur-meta" class="dl-cur-meta"></div>
           </div>
 
+          <div class="dl-legend" title="">
+            <span class="dl-legend-label" data-i18n="detail.legend">Chú thích màu:</span>
+            <span class="dl-legend-item">
+              <span class="dl-swatch dl-swatch-ok"></span>
+              <span data-i18n="detail.legend.ok">Khớp</span>
+            </span>
+            <span class="dl-legend-item">
+              <span class="dl-swatch dl-swatch-mismatch"></span>
+              <span data-i18n="detail.legend.mismatch">Lệch config ✗</span>
+            </span>
+            <span class="dl-legend-item">
+              <span class="dl-swatch dl-swatch-no-config"></span>
+              <span data-i18n="detail.legend.noConfig">Thiếu config ⚠</span>
+            </span>
+            <span class="dl-legend-item">
+              <span class="dl-swatch dl-swatch-missing-web"></span>
+              <span data-i18n="detail.legend.missingWeb">Thiếu trên web ⚠</span>
+            </span>
+            <span class="dl-legend-item">
+              <span class="dl-swatch dl-swatch-info"></span>
+              <span data-i18n="detail.legend.info">Chỉ hiển thị</span>
+            </span>
+          </div>
+
           <div class="dl-table-wrap">
             <table class="dl-tbl">
               <thead id="dl-thead"></thead>
@@ -190,6 +221,15 @@
           <div id="dl-log" class="log dl-log"></div>
         </main>
       </div>
+
+      <div class="dl-resize dl-resize-n" data-edge="n"></div>
+      <div class="dl-resize dl-resize-s" data-edge="s"></div>
+      <div class="dl-resize dl-resize-e" data-edge="e"></div>
+      <div class="dl-resize dl-resize-w" data-edge="w"></div>
+      <div class="dl-resize dl-resize-ne" data-edge="ne"></div>
+      <div class="dl-resize dl-resize-nw" data-edge="nw"></div>
+      <div class="dl-resize dl-resize-se" data-edge="se"></div>
+      <div class="dl-resize dl-resize-sw" data-edge="sw"></div>
     </div>
   </div>
 

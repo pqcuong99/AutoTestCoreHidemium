@@ -1,7 +1,10 @@
 /**
  * Helper chung cho cac check CreepJS.
+ * Highlight Detail Log dung chung SiteHighlight (giong BrowserLeaks).
  */
 const { CREEPJS_URLS } = require('./urls');
+const { summarizeFieldResults } = require('../../../shared/siteHighlight');
+
 const CREEPJS_URL = CREEPJS_URLS.main;
 const LOAD_TIMEOUT_MS = 90000;
 
@@ -135,16 +138,73 @@ function highlightMarksInPage(marks, rootSelector) {
   return painted;
 }
 
-function summarizeLines(lines) {
-  const judged = lines.filter((l) => l.pass === true || l.pass === false);
-  const allPass = judged.length > 0 && judged.every((l) => l.pass === true);
-  const anyFail = judged.some((l) => l.pass === false);
-  return {
-    lines,
-    state: anyFail ? 'fail' : allPass ? 'pass' : judged.length ? 'pass' : 'skipped',
-    pass: anyFail ? false : allPass ? true : null,
-    value: lines.map((l) => `${l.label}\n${l.value}`).join('\n'),
-  };
+/**
+ * Chuyen line CreepJS -> field SiteHighlight (giong BrowserLeaks).
+ * Chap nhan ca format cu { value, pass } va format moi { actual, infoOnly, ... }.
+ */
+function toFieldResult(line) {
+  if (!line) return { label: '', actual: '', expected: '', pass: true, skipped: true };
+
+  // Da dung contract SiteHighlight
+  if (
+    Object.prototype.hasOwnProperty.call(line, 'actual') &&
+    (line.infoOnly ||
+      line.noConfig ||
+      line.missingOnWeb ||
+      typeof line.pass === 'boolean' ||
+      line.skipped)
+  ) {
+    return line;
+  }
+
+  const label = line.label || '';
+  const actual =
+    line.actual != null
+      ? String(line.actual)
+      : line.value == null || line.value === ''
+        ? ''
+        : String(line.value);
+  const rawExp = line.expected;
+  const defaultExp = isDefault(rawExp) || rawExp === 'default';
+  const needle = line.needle || (actual || null);
+  const selector = line.selector || null;
+  const base = { label, actual, needle, selector };
+
+  // pass: null + expected default / web-only → info
+  if (line.infoOnly || (line.pass == null && defaultExp)) {
+    return { ...base, expected: '', pass: true, skipped: true, infoOnly: true };
+  }
+
+  if (defaultExp) {
+    return { ...base, expected: '', pass: true, skipped: true, infoOnly: true };
+  }
+
+  const expected = rawExp == null ? '' : String(rawExp);
+
+  if (!actual) {
+    return {
+      ...base,
+      expected,
+      pass: false,
+      skipped: true,
+      missingOnWeb: true,
+    };
+  }
+
+  if (line.pass === true || line.pass === false) {
+    return { ...base, expected, pass: line.pass };
+  }
+
+  return { ...base, expected, pass: true };
+}
+
+/**
+ * Gom field -> o Detail Log (cung SiteHighlight nhu BrowserLeaks).
+ * @returns {{ state:string, value:string, pass:boolean, lines:Array }}
+ */
+function summarizeLines(lines, opts) {
+  const fields = (lines || []).map(toFieldResult);
+  return summarizeFieldResults(fields, opts || {});
 }
 
 /**
@@ -155,21 +215,59 @@ function summarizeLines(lines) {
  * @param {'str'|'num'} [mode]
  */
 function lineResult(label, actual, expected, needle, mode = 'str') {
-  let pass = null;
-  if (!isDefault(expected) && actual != null && actual !== '') {
-    pass = mode === 'num' ? eqNum(actual, expected) : eqStr(actual, expected);
+  const actualStr =
+    actual == null || actual === '' || (typeof actual === 'number' && Number.isNaN(actual))
+      ? ''
+      : String(actual);
+  const defaultExp = isDefault(expected);
+  const base = {
+    label,
+    actual: actualStr,
+    needle: needle || (actualStr || null),
+  };
+
+  if (defaultExp) {
+    return { ...base, expected: '', pass: true, skipped: true, infoOnly: true };
   }
+
+  const exp = String(expected);
+  if (!actualStr) {
+    return {
+      ...base,
+      expected: exp,
+      pass: false,
+      skipped: true,
+      missingOnWeb: true,
+    };
+  }
+
+  const ok = mode === 'num' ? eqNum(actual, expected) : eqStr(actual, expected);
+  return { ...base, expected: exp, pass: !!ok };
+}
+
+/** Chi hien thi tu web — khong so config (hash, canvas, …). */
+function infoLine(label, actual, needle) {
+  const actualStr = actual == null || actual === '' ? '' : String(actual);
   return {
     label,
-    value: actual == null || actual === '' ? '' : String(actual),
-    expected: isDefault(expected) ? 'default' : expected,
-    pass,
-    needle: needle || (actual != null && actual !== '' ? String(actual) : null),
+    actual: actualStr,
+    expected: '',
+    pass: true,
+    skipped: true,
+    infoOnly: true,
+    needle: needle || (actualStr || null),
   };
 }
 
+function paintPassForMark(f) {
+  if (!f) return null;
+  if (f.infoOnly || f.noConfig) return null;
+  if (f.missingOnWeb) return false;
+  return f.pass;
+}
+
 /**
- * Chay 1 check: scrape -> lines -> highlight -> log.
+ * Chay 1 check: scrape -> lines -> highlight page -> SiteHighlight Detail Log.
  * @param {import('playwright-core').Page} page
  * @param {{ step:Function }} ctx
  * @param {string} title
@@ -178,21 +276,27 @@ function lineResult(label, actual, expected, needle, mode = 'str') {
  */
 async function finishCheck(page, ctx, title, lines, missing = false) {
   const { step } = ctx;
+  const fields = (lines || []).map(toFieldResult);
+  const marks = fields
+    .filter((l) => l.needle || l.selector)
+    .map((l) => ({
+      needle: l.needle,
+      selector: l.selector || null,
+      pass: paintPassForMark(l),
+    }));
+
+  let result = summarizeFieldResults(fields);
   if (missing) {
     step(`CreepJS ${title}: khong doc duoc`, 'err');
-    const result = summarizeLines(lines);
-    result.state = 'fail';
-    result.pass = false;
-    return result;
+    result = { ...result, state: 'fail', pass: false };
   }
-  const result = summarizeLines(lines);
-  const marks = lines
-    .filter((l) => l.needle)
-    .map((l) => ({ needle: l.needle, selector: l.selector || null, pass: l.pass }));
+
   const painted = await page.evaluate(highlightMarksInPage, marks);
+  const mismatchN = fields.filter((l) => l.pass === false && !l.missingOnWeb).length;
+  const missingN = fields.filter((l) => l.missingOnWeb).length;
   step(
-    `CreepJS ${title}: ${result.state} (hl ${painted}, lech ${lines.filter((l) => l.pass === false).length})`,
-    result.pass === false ? 'err' : 'ok'
+    `CreepJS ${title}: ${result.state} (hl ${painted}, lech ${mismatchN}, missingWeb ${missingN})`,
+    result.pass === false || missing ? 'err' : 'ok'
   );
   return result;
 }
@@ -207,7 +311,9 @@ module.exports = {
   eqStr,
   eqNum,
   highlightMarksInPage,
+  toFieldResult,
   summarizeLines,
   lineResult,
+  infoLine,
   finishCheck,
 };

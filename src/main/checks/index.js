@@ -59,7 +59,13 @@ async function runProfileCheck(lane, checkKeys, ctx) {
   // ---------- 1. Mo profile ----------
   abortCheck();
   step(t('check.opening', { name: name || uuid }));
-  const opened = await openProfile(uuid, { baseUrl: options.apiBase, signal });
+  const restoreSession = options.disableRestoreSession === false;
+  if (!restoreSession) step(t('check.restoreSessionOff'), 'ok');
+  const opened = await openProfile(uuid, {
+    baseUrl: options.apiBase,
+    signal,
+    restoreSession,
+  });
   lane.assertOwns(uuid);
 
   if (!opened.ok) {

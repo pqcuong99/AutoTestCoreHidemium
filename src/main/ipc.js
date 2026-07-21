@@ -71,6 +71,7 @@ function register(getWindow) {
             mode: mode || 'check',
             testWaitMs: cfg.testWaitMs,
             targetOs: cfg.targetOs || 'windows',
+            disableRestoreSession: cfg.disableRestoreSession !== false,
           },
         },
         (evt) => broadcast('run:event', evt)

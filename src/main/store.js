@@ -17,6 +17,8 @@ const DEFAULTS = {
   testWaitMs: 10000,      // che do Test luong: giu profile mo bao lau truoc khi dong
   locale: 'vi',           // 'vi' | 'en'
   targetOs: 'windows',    // OS can test: windows | macos | ios | android
+  /** true = openProfile kem restore_session=false (khong mo lai tab cu) */
+  disableRestoreSession: true,
 };
 
 let cachePath = null;

@@ -95,6 +95,10 @@ window.Settings = (() => {
     $('#sel-locale').value = locale;
     $('#chk-auto-close').checked = !!config.autoClose;
     cfg.targetOs = config.targetOs || 'windows';
+    const disableRestore = config.disableRestoreSession !== false;
+    const restoreEl = $('#chk-disable-restore-session');
+    if (restoreEl) restoreEl.checked = disableRestore;
+    cfg.disableRestoreSession = disableRestore;
     applyLocale(locale);
 
     $('#sel-locale').addEventListener('change', async () => {
@@ -122,6 +126,15 @@ window.Settings = (() => {
       window.api.config.set({ autoClose: on });
     });
 
+    const restoreBox = $('#chk-disable-restore-session');
+    if (restoreBox) {
+      restoreBox.addEventListener('change', () => {
+        const on = restoreBox.checked;
+        cfg.disableRestoreSession = on;
+        window.api.config.set({ disableRestoreSession: on });
+      });
+    }
+
     $('#check-list').addEventListener('change', persistChecks);
 
     $('#chk-all-on').addEventListener('click', () => {
@@ -138,12 +151,19 @@ window.Settings = (() => {
     return !!$('#chk-auto-close')?.checked;
   }
 
+  function getDisableRestoreSession() {
+    const el = $('#chk-disable-restore-session');
+    if (el) return !!el.checked;
+    return cfg.disableRestoreSession !== false;
+  }
+
   return {
     init,
     getCheckKeys,
     getThreads,
     getTestWaitSec,
     getAutoClose,
+    getDisableRestoreSession,
     getTargetOs,
     applyLocale,
   };

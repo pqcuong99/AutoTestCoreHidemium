@@ -4,8 +4,7 @@
  */
 const {
   cfgStr,
-  isDefault,
-  eqNum,
+  lineResult,
   highlightMarksInPage,
   summarizeLines,
 } = require('./helpers');
@@ -107,17 +106,9 @@ function compareScreen(scraped, configMap) {
   ];
 
   const lines = fields.map((f) => {
-    const expected = f.expected;
-    let pass = null;
-    if (!isDefault(expected)) pass = eqNum(f.actual, expected);
-    return {
-      label: f.label,
-      value: f.actual == null || Number.isNaN(f.actual) ? '' : String(f.actual),
-      expected: isDefault(expected) ? 'default' : expected,
-      pass,
-      needle: f.needle || null,
-      selector: f.selector || null,
-    };
+    const line = lineResult(f.label, f.actual, f.expected, f.needle, 'num');
+    if (f.selector) line.selector = f.selector;
+    return line;
   });
 
   const markMap = new Map();
@@ -125,7 +116,8 @@ function compareScreen(scraped, configMap) {
     const key = l.selector ? `sel:${l.selector}` : l.needle ? `n:${l.needle}` : null;
     if (!key) continue;
     const prev = markMap.get(key);
-    let pass = l.pass;
+    let pass = l.infoOnly || l.noConfig ? null : l.pass;
+    if (l.missingOnWeb) pass = false;
     if (prev) {
       if (prev.pass === false || pass === false) pass = false;
       else if (prev.pass === true && pass === true) pass = true;

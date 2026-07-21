@@ -11,7 +11,14 @@
  */
 window.DetailLog = (() => {
   const S = () => DStore.state;
+  const GEOM_KEY = 'autotest.dlWindowGeom';
+  const MIN_W = 480;
+  const MIN_H = 280;
+
   let isOpen = false;
+  let maximized = false;
+  /** @type {{ left:number, top:number, width:number, height:number } | null} */
+  let restoreGeom = null;
 
   function pushLog(rec, message, kind) {
     rec.logs.push({
@@ -168,16 +175,216 @@ window.DetailLog = (() => {
   }
 
   // ---------- Dong / mo popup ----------
+  function overlayEl() {
+    return document.getElementById('dl-overlay');
+  }
+  function modalEl() {
+    return document.getElementById('dl-modal');
+  }
+
+  function bounds() {
+    const ov = overlayEl();
+    return { w: ov.clientWidth, h: ov.clientHeight };
+  }
+
+  function clampGeom(g) {
+    const b = bounds();
+    const width = Math.max(MIN_W, Math.min(g.width, b.w));
+    const height = Math.max(MIN_H, Math.min(g.height, b.h));
+    const left = Math.max(0, Math.min(g.left, Math.max(0, b.w - width)));
+    const top = Math.max(0, Math.min(g.top, Math.max(0, b.h - height)));
+    return { left, top, width, height };
+  }
+
+  function readGeom() {
+    const m = modalEl();
+    return {
+      left: m.offsetLeft,
+      top: m.offsetTop,
+      width: m.offsetWidth,
+      height: m.offsetHeight,
+    };
+  }
+
+  function applyGeom(g) {
+    const m = modalEl();
+    const c = clampGeom(g);
+    m.style.left = c.left + 'px';
+    m.style.top = c.top + 'px';
+    m.style.width = c.width + 'px';
+    m.style.height = c.height + 'px';
+    return c;
+  }
+
+  function defaultGeom() {
+    const b = bounds();
+    const width = Math.max(MIN_W, Math.round(b.w * 0.92));
+    const height = Math.max(MIN_H, Math.round(b.h * 0.9));
+    return {
+      left: Math.round((b.w - width) / 2),
+      top: Math.round((b.h - height) / 2),
+      width,
+      height,
+    };
+  }
+
+  function loadSavedGeom() {
+    try {
+      const raw = localStorage.getItem(GEOM_KEY);
+      if (!raw) return null;
+      const g = JSON.parse(raw);
+      if (!g || typeof g.left !== 'number') return null;
+      return g;
+    } catch {
+      return null;
+    }
+  }
+
+  function saveGeom() {
+    if (maximized) return;
+    try {
+      localStorage.setItem(GEOM_KEY, JSON.stringify(readGeom()));
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function setMaximized(on) {
+    const m = modalEl();
+    const btn = document.getElementById('dl-maximize');
+    maximized = !!on;
+    m.classList.toggle('dl-maximized', maximized);
+    if (btn) {
+      btn.innerHTML = maximized ? '&#9634;' : '&#9633;';
+      btn.title = t(maximized ? 'detail.restoreSize' : 'detail.maximize');
+      btn.setAttribute('data-i18n-title', maximized ? 'detail.restoreSize' : 'detail.maximize');
+    }
+  }
+
+  function toggleMaximize() {
+    if (maximized) {
+      setMaximized(false);
+      applyGeom(restoreGeom || loadSavedGeom() || defaultGeom());
+    } else {
+      restoreGeom = readGeom();
+      setMaximized(true);
+    }
+    saveGeom();
+  }
+
+  function initWindowChrome() {
+    const header = document.getElementById('dl-drag');
+    const modal = modalEl();
+
+    // --- Drag ---
+    header.addEventListener('mousedown', (e) => {
+      if (e.button !== 0) return;
+      if (e.target.closest('button, input, label, a, .mini')) return;
+      if (maximized) return;
+
+      e.preventDefault();
+      const startX = e.clientX;
+      const startY = e.clientY;
+      const start = readGeom();
+      header.classList.add('dl-dragging');
+      document.body.classList.add('dl-win-moving');
+
+      const onMove = (ev) => {
+        applyGeom({
+          ...start,
+          left: start.left + (ev.clientX - startX),
+          top: start.top + (ev.clientY - startY),
+        });
+      };
+      const onUp = () => {
+        header.classList.remove('dl-dragging');
+        document.body.classList.remove('dl-win-moving');
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        saveGeom();
+      };
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+
+    header.addEventListener('dblclick', (e) => {
+      if (e.target.closest('button, input, label, a')) return;
+      toggleMaximize();
+    });
+
+    // --- Resize ---
+    modal.querySelectorAll('.dl-resize').forEach((handle) => {
+      handle.addEventListener('mousedown', (e) => {
+        if (e.button !== 0 || maximized) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const edge = handle.dataset.edge || '';
+        const startX = e.clientX;
+        const startY = e.clientY;
+        const start = readGeom();
+        document.body.classList.add('dl-win-resizing');
+
+        const onMove = (ev) => {
+          const dx = ev.clientX - startX;
+          const dy = ev.clientY - startY;
+          let { left, top, width, height } = start;
+
+          if (edge.includes('e')) width = start.width + dx;
+          if (edge.includes('s')) height = start.height + dy;
+          if (edge.includes('w')) {
+            width = start.width - dx;
+            left = start.left + dx;
+          }
+          if (edge.includes('n')) {
+            height = start.height - dy;
+            top = start.top + dy;
+          }
+
+          if (width < MIN_W) {
+            if (edge.includes('w')) left = start.left + start.width - MIN_W;
+            width = MIN_W;
+          }
+          if (height < MIN_H) {
+            if (edge.includes('n')) top = start.top + start.height - MIN_H;
+            height = MIN_H;
+          }
+
+          applyGeom({ left, top, width, height });
+        };
+        const onUp = () => {
+          document.body.classList.remove('dl-win-resizing');
+          document.removeEventListener('mousemove', onMove);
+          document.removeEventListener('mouseup', onUp);
+          saveGeom();
+        };
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+      });
+    });
+
+    document.getElementById('dl-maximize').addEventListener('click', toggleMaximize);
+
+    window.addEventListener('resize', () => {
+      if (!isOpen || maximized) return;
+      applyGeom(readGeom());
+    });
+  }
+
   function open() {
     isOpen = true;
-    document.getElementById('dl-overlay').hidden = false;
-    DRender.head();   // ve lai header cot moi lan mo
-    DRender.all();    // do toan bo du lieu da tich luy khi popup dang dong
+    const ov = overlayEl();
+    ov.hidden = false;
+    const saved = loadSavedGeom();
+    setMaximized(false);
+    applyGeom(saved || defaultGeom());
+    DRender.head();
+    DRender.all();
   }
 
   function close() {
     isOpen = false;
-    document.getElementById('dl-overlay').hidden = true;
+    if (!maximized) saveGeom();
+    overlayEl().hidden = true;
   }
 
   function toggle() {
@@ -201,11 +408,6 @@ window.DetailLog = (() => {
 
     document.getElementById('dl-follow').addEventListener('change', (e) => {
       S().follow = e.target.checked;
-    });
-
-    // Bam nen mo phia ngoai -> dong popup
-    document.getElementById('dl-overlay').addEventListener('mousedown', (e) => {
-      if (e.target.id === 'dl-overlay') close();
     });
 
     document.addEventListener('keydown', (e) => {
@@ -239,6 +441,7 @@ window.DetailLog = (() => {
       if (th) window.api.shell.openExternal(th.dataset.url);
     });
 
+    initWindowChrome();
     if (window.DTableResize) DTableResize.init();
     DRender.head();
   }
