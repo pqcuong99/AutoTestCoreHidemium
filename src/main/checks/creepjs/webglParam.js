@@ -30,6 +30,14 @@ function normalizeValue(value) {
     .toLowerCase();
 }
 
+function normalizeExtensionList(value) {
+  const extensions = String(value == null ? '' : value)
+    .split(',')
+    .map((extension) => extension.trim().toLowerCase())
+    .filter(Boolean);
+  return [...new Set(extensions)].sort().join(',');
+}
+
 function scrapeWebglParamsInPage() {
   function readBrLines(content) {
     const lines = [];
@@ -162,7 +170,10 @@ async function checkWebglParam(page, configMap, ctx) {
           pass: isDefault(expected)
             ? null
             : actual != null &&
-              normalizeValue(actual) === normalizeValue(expected),
+              (/^webgl_extension$/i.test(label)
+                ? normalizeExtensionList(actual) ===
+                  normalizeExtensionList(expected)
+                : normalizeValue(actual) === normalizeValue(expected)),
         };
       })
     : Object.entries(scraped.params).map(([label, value]) => ({
@@ -189,6 +200,7 @@ module.exports = {
   scrapeWebglParamsInPage,
   normalizeParamName,
   normalizeValue,
+  normalizeExtensionList,
   findActual,
   CFG_PREFIX,
   OPEN_XPATH,
