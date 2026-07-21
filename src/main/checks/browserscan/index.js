@@ -10,6 +10,7 @@ const { runUserAgentDataChecks } = require('./userAgentData');
 const { runClientHintsChecks } = require('./clientHints');
 const { checkFont } = require('./font');
 const { checkWebgl } = require('./webgl');
+const { checkWebgpu } = require('./webgpu');
 
 const SITE = WEBSITES.find((website) => website.key === 'browserscan');
 const SUPPORTED = new Set([
@@ -27,6 +28,7 @@ const SUPPORTED = new Set([
   'form_factors',
   'font',
   'webgl',
+  'webgpu',
 ]);
 const NAVIGATOR_KEYS = new Set([
   'platform_navigator',
@@ -93,6 +95,14 @@ async function run(checkKeys, ctx) {
       lines: result?.lines || null,
     });
   };
+  const saveResult = (checkKey, result) => {
+    results[checkKey] =
+      result || { state: 'fail', value: 'Khong doc duoc', pass: false, lines: [] };
+    emitResult(checkKey, results[checkKey]);
+  };
+  const saveBundle = (bundle, keys) => {
+    for (const key of keys) saveResult(key, bundle?.[key]);
+  };
 
   let session;
   try {
@@ -101,6 +111,7 @@ async function run(checkKeys, ctx) {
     const { page } = session;
 
     if (signal?.aborted) throw new Error('aborted');
+    const needsMainPage = supported.some((key) => key !== 'webgpu');
     let onBrowserScan = false;
     try {
       const current = new URL(page.url());
@@ -108,51 +119,50 @@ async function run(checkKeys, ctx) {
         /^(?:www\.)?browserscan\.net$/i.test(current.hostname) &&
         (current.pathname === '/' || current.pathname === '');
     } catch { /* ignore */ }
-    if (!onBrowserScan) {
+    if (needsMainPage && !onBrowserScan) {
       step(`BrowserScan: goto ${BROWSERSCAN_URL}`);
       await page.goto(BROWSERSCAN_URL, {
         waitUntil: 'domcontentloaded',
         timeout: 90000,
       });
-    } else {
+    } else if (needsMainPage) {
       step('BrowserScan: dung lai tab da mo');
     }
 
     const navigatorKeys = supported.filter((key) => NAVIGATOR_KEYS.has(key));
-    const checked = navigatorKeys.length
-      ? await runNavigatorChecks(page, navigatorKeys, configMap, ctx)
-      : {};
+    if (navigatorKeys.length) {
+      const checked = await runNavigatorChecks(page, navigatorKeys, configMap, ctx);
+      saveBundle(checked, navigatorKeys);
+    }
     if (supported.includes('screen')) {
-      checked.screen = await checkScreen(page, configMap, ctx);
+      saveResult('screen', await checkScreen(page, configMap, ctx));
     }
     if (supported.includes('font')) {
-      checked.font = await checkFont(page, configMap, ctx);
+      saveResult('font', await checkFont(page, configMap, ctx));
     }
     if (supported.includes('webgl')) {
-      checked.webgl = await checkWebgl(page, configMap, ctx);
+      saveResult('webgl', await checkWebgl(page, configMap, ctx));
     }
     const userAgentDataKeys = supported.filter((key) =>
       USER_AGENT_DATA_KEYS.has(key)
     );
     if (userAgentDataKeys.length) {
-      Object.assign(
-        checked,
-        await runUserAgentDataChecks(page, userAgentDataKeys, configMap, ctx)
+      saveBundle(
+        await runUserAgentDataChecks(page, userAgentDataKeys, configMap, ctx),
+        userAgentDataKeys
       );
     }
     const clientHintsKeys = supported.filter((key) =>
       CLIENT_HINTS_KEYS.has(key)
     );
     if (clientHintsKeys.length) {
-      Object.assign(
-        checked,
-        await runClientHintsChecks(page, clientHintsKeys, configMap, ctx)
+      saveBundle(
+        await runClientHintsChecks(page, clientHintsKeys, configMap, ctx),
+        clientHintsKeys
       );
     }
-    for (const key of supported) {
-      results[key] =
-        checked[key] || { state: 'fail', value: 'Khong doc duoc', pass: false, lines: [] };
-      emitResult(key, results[key]);
+    if (supported.includes('webgpu')) {
+      saveResult('webgpu', await checkWebgpu(page, configMap, ctx));
     }
 
     await release(session, { keepPage: !(options && options.autoClose) });
