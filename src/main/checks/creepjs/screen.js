@@ -42,12 +42,12 @@ function scrapeScreenInPage() {
   const availWH = pick(/\.\.\.\.avail:\s*([^\n]+)/i);
   const depthRaw = pick(/depth:\s*([^\n]+)/i);
 
-  let width = fp?.width;
-  let height = fp?.height;
-  let availWidth = fp?.availWidth;
-  let availHeight = fp?.availHeight;
-  let colorDepth = fp?.colorDepth;
-  let pixelDepth = fp?.pixelDepth;
+  let width = fp?.width ?? window.screen.width;
+  let height = fp?.height ?? window.screen.height;
+  let availWidth = fp?.availWidth ?? window.screen.availWidth;
+  let availHeight = fp?.availHeight ?? window.screen.availHeight;
+  let colorDepth = fp?.colorDepth ?? window.screen.colorDepth;
+  let pixelDepth = fp?.pixelDepth ?? window.screen.pixelDepth;
 
   if (screenWH) {
     const p = screenWH.split(/\s*x\s*/i);

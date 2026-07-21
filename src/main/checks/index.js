@@ -15,10 +15,12 @@ const { buildConfigColumn } = require('../configMapper');
 const { WEBSITES } = require('../../shared/websites');
 const { t } = require('../../shared/i18n');
 const creepjs = require('./creepjs');
+const browserscan = require('./browserscan');
 
 /** Site checker theo key — them website moi thi dang ky o day. */
 const SITE_RUNNERS = {
   [creepjs.key]: creepjs,
+  [browserscan.key]: browserscan,
 };
 
 /**
