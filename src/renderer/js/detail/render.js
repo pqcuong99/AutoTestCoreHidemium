@@ -51,7 +51,7 @@ window.DRender = (() => {
     const thead = document.getElementById('dl-thead');
     const siteCols = WEBSITES.map(
       (w) =>
-        `<th data-url="${esc(w.url)}" data-col-key="site:${esc(w.key)}" class="col-site">${esc(w.label)}</th>`
+        `<th data-col-key="site:${esc(w.key)}" class="col-site">${esc(w.label)}</th>`
     ).join('');
     thead.innerHTML = `<tr>
       <th class="col-a" data-col-key="check">${esc(t('detail.colCheck'))}</th>

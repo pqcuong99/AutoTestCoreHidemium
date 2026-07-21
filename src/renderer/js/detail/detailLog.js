@@ -434,13 +434,6 @@ window.DetailLog = (() => {
       }
     });
 
-    // Bam header cot website -> mo web that (bo qua khi bam thanh resize)
-    document.getElementById('dl-thead').addEventListener('click', (e) => {
-      if (e.target.closest('.dl-col-resizer')) return;
-      const th = e.target.closest('th[data-url]');
-      if (th) window.api.shell.openExternal(th.dataset.url);
-    });
-
     initWindowChrome();
     if (window.DTableResize) DTableResize.init();
     DRender.head();
