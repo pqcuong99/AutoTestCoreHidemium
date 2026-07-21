@@ -74,11 +74,36 @@ window.DetailLog = (() => {
         break;
       }
 
+      case 'site-result': {
+        const r = DStore.record(evt.uuid);
+        const row = r.rows?.[evt.checkKey];
+        if (row) {
+          if (!row.sites) row.sites = {};
+          row.sites[evt.siteKey] = {
+            state: evt.state || (evt.pass ? 'pass' : 'fail'),
+            value: evt.value != null ? evt.value : '',
+            fields: Array.isArray(evt.fields) ? evt.fields : row.sites[evt.siteKey]?.fields || [],
+          };
+        }
+        if (S().current === evt.uuid) draw.table();
+        break;
+      }
+
       case 'site-done': {
         const r = DStore.record(evt.uuid);
-        Object.values(r.rows).forEach((row) => {
-          if (row.sites && row.sites[evt.siteKey]) row.sites[evt.siteKey].state = evt.state;
-        });
+        // Chi ghi de khi skipped/fail toan cot; 'done' giu pass/fail tung o (tu site-result)
+        if (evt.state === 'skipped' || evt.state === 'fail') {
+          Object.values(r.rows).forEach((row) => {
+            if (row.sites && row.sites[evt.siteKey]) {
+              if (evt.state === 'skipped') {
+                row.sites[evt.siteKey].state = 'skipped';
+                if (!row.sites[evt.siteKey].value) row.sites[evt.siteKey].value = '-';
+              } else if (row.sites[evt.siteKey].state === 'pending') {
+                row.sites[evt.siteKey].state = 'fail';
+              }
+            }
+          });
+        }
         if (S().current === evt.uuid) draw.table();
         break;
       }
@@ -185,12 +210,24 @@ window.DetailLog = (() => {
       if (e.key === 'Escape' && isOpen) close();
     });
 
-    // Bam "+ N truong nua..." -> xo het field cua o do
+    // Bam "+ N truong nua..." -> xo het field (cot Config hoac cot site)
     document.getElementById('dl-tbody').addEventListener('click', (e) => {
       if (!e.target.classList.contains('kv-more')) return;
       const tr = e.target.closest('tr');
-      const row = DStore.current()?.rows?.[tr.dataset.key];
-      if (row) tr.querySelector('.cell-b').innerHTML = DRender.fieldsHtmlAll(row.config);
+      const td = e.target.closest('td');
+      const row = DStore.current()?.rows?.[tr?.dataset.key];
+      if (!row || !td) return;
+      if (td.classList.contains('cell-b')) {
+        td.innerHTML = DRender.fieldsHtmlAll(row.config);
+        return;
+      }
+      if (td.classList.contains('cell-site') && td.dataset.site) {
+        const site = row.sites?.[td.dataset.site];
+        if (site?.fields?.length) {
+          const cls = { pass: 'site-pass', fail: 'site-fail' }[site.state] || '';
+          td.innerHTML = `<div class="site-cell site-kv ${cls}">${DRender.fieldsHtmlAll(site.fields)}</div>`;
+        }
+      }
     });
 
     // Bam header cot website -> mo web that

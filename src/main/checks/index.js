@@ -15,6 +15,12 @@ const { buildConfigColumn } = require('../configMapper');
 const { WEBSITES } = require('../../shared/websites');
 const { t } = require('../../shared/i18n');
 
+/** Chi khai bao folder site dang dung — logic nam trong tung folder. */
+const SITES = {
+  sannysoft: require('./bot_sannysoft'),
+  iphey: require('./iphey'),
+};
+
 /**
  * @param {import('../laneManager').Lane} lane
  * @param {string[]} checkKeys
@@ -78,17 +84,38 @@ async function runProfileCheck(lane, checkKeys, ctx) {
       checkKeys,
     });
 
-    // ---------- 4. Lay gia tri that tu website (chua implement) ----------
-    // TODO: dung web_socket (CDP) mo tab toi tung WEBSITES[i].url, doc gia tri that,
-    //       roi emit { type:'site-result', uuid, checkKey, siteKey, value, pass }.
-    //       Tat ca phai di qua lane.assertOwns(uuid) truoc khi ghi vao lane.ctx.rows.
+    // ---------- 4. Lay gia tri that tu website (thu tu theo WEBSITES) ----------
     for (const w of WEBSITES) {
       abortCheck();
       lane.assertOwns(uuid);
-      for (const key of checkKeys) {
-        lane.ctx.rows[key].sites[w.key] = { state: 'skipped', value: '-' };
+
+      const site = SITES[w.key];
+      if (!site?.scrape || !site?.apply) {
+        for (const key of checkKeys) {
+          lane.ctx.rows[key].sites[w.key] = { state: 'skipped', value: '-' };
+        }
+        emit({ type: 'site-done', uuid, siteKey: w.key, state: 'skipped' });
+        continue;
       }
-      emit({ type: 'site-done', uuid, siteKey: w.key, state: 'skipped' });
+
+      const res = await site.scrape({
+        openData: lane.ctx.openData,
+        checkKeys,
+        signal,
+        log: step,
+      });
+      lane.assertOwns(uuid);
+      site.apply(lane, checkKeys, res, emit, uuid);
+      emit({
+        type: 'detail-rows',
+        uuid,
+        profileName: opened.data.profile_name || name,
+        rows: lane.ctx.rows,
+        checkKeys,
+      });
+      if (!res.ok) {
+        step(t(site.failKey || `check.${w.key}Fail`, { error: res.error || '' }), 'err');
+      }
     }
 
     return { ok: true, status: t('err.pass'), rows: lane.ctx.rows };
@@ -104,4 +131,4 @@ async function runProfileCheck(lane, checkKeys, ctx) {
   }
 }
 
-module.exports = { runProfileCheck };
+module.exports = { runProfileCheck, SITES };

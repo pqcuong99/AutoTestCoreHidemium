@@ -102,6 +102,7 @@
 .cell-missing { color: #64748b; font-style: italic; }
 
 .site-cell { color: var(--muted); font-size: 11px; }
+.site-cell.site-kv { color: inherit; }
 .site-pending { color: #94a3b8; }
 .site-skipped { color: #64748b; }
 .site-pass { color: #86efac; }
