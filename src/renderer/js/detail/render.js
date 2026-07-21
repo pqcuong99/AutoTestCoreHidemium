@@ -199,6 +199,8 @@ window.DRender = (() => {
 
     // sannysoft / iphey: fields { label, value }
     let fields = normalizeFields(site.fields);
+    // BrowserScan legacy: lines cung co dang { label, value, expected, pass }.
+    if (!fields.length) fields = normalizeFields(site.lines);
     if (!fields.length && site.value && site.value !== '-') fields = parseValueToFields(site.value);
     if (fields.length) {
       return `<div class="site-cell site-kv ${cls}">${kvListHtml(fields)}</div>`;

@@ -427,9 +427,15 @@ window.DetailLog = (() => {
       }
       if (td.classList.contains('cell-site') && td.dataset.site) {
         const site = row.sites?.[td.dataset.site];
-        if (site?.fields?.length) {
+        const fields =
+          site?.fields?.length
+            ? site.fields
+            : site?.lines?.length
+              ? site.lines
+              : null;
+        if (fields) {
           const cls = { pass: 'site-pass', fail: 'site-fail' }[site.state] || '';
-          td.innerHTML = `<div class="site-cell site-kv ${cls}">${DRender.fieldsHtmlAll(site.fields)}</div>`;
+          td.innerHTML = `<div class="site-cell site-kv ${cls}">${DRender.fieldsHtmlAll(fields)}</div>`;
         }
       }
     });
