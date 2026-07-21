@@ -80,14 +80,34 @@ window.DRender = (() => {
       .join('');
   }
 
-  function siteLinesHtml(txt) {
+  function siteLinesHtml(txt, structuredLines) {
+    const SH = window.SiteHighlight;
+
+    if (Array.isArray(structuredLines) && structuredLines.length) {
+      return structuredLines
+        .map((row) => {
+          const status = row.status || 'ok';
+          const cls = SH ? SH.cssClassFor(status) : '';
+          const raw = String(row.text || '');
+          const parsed = SH ? SH.parseLineStatus(raw) : { body: raw, status };
+          const body = parsed.body;
+          const idx = body.indexOf(':');
+          if (idx <= 0) {
+            return `<div class="kv ${cls}"><span class="kv-v">${esc(body)}</span></div>`;
+          }
+          const k = body.slice(0, idx).trim();
+          const v = body.slice(idx + 1).trim();
+          return `<div class="kv ${cls}"><span class="kv-k">${esc(k)}</span><span class="kv-v">${esc(v)}</span></div>`;
+        })
+        .join('');
+    }
+
     const lines = String(txt ?? '')
       .split(/\r?\n/)
       .map((l) => l.trim())
       .filter(Boolean);
     if (!lines.length) return '';
 
-    // "key: value" -> hang ngang; nhieu dong khong co ":" -> van 1 cot
     const hasKv = lines.some((l) => /^[^:]+:\s*.+/.test(l));
     if (!hasKv) {
       return `<span class="site-cell-plain">${esc(lines.join('\n'))}</span>`;
@@ -95,13 +115,16 @@ window.DRender = (() => {
 
     return lines
       .map((line) => {
-        const idx = line.indexOf(':');
+        const parsed = SH ? SH.parseLineStatus(line) : { body: line, status: 'ok' };
+        const cls = SH ? SH.cssClassFor(parsed.status) : '';
+        const body = parsed.body;
+        const idx = body.indexOf(':');
         if (idx <= 0) {
-          return `<div class="kv"><span class="kv-v">${esc(line)}</span></div>`;
+          return `<div class="kv ${cls}"><span class="kv-v">${esc(body)}</span></div>`;
         }
-        const k = line.slice(0, idx).trim();
-        const v = line.slice(idx + 1).trim();
-        return `<div class="kv"><span class="kv-k">${esc(k)}</span><span class="kv-v">${esc(v)}</span></div>`;
+        const k = body.slice(0, idx).trim();
+        const v = body.slice(idx + 1).trim();
+        return `<div class="kv ${cls}"><span class="kv-k">${esc(k)}</span><span class="kv-v">${esc(v)}</span></div>`;
       })
       .join('');
   }
@@ -129,7 +152,7 @@ window.DRender = (() => {
       return `<span class="site-cell ${cls}"><span class="site-cell-plain">${esc(txt)}</span></span>`;
     }
 
-    return `<div class="site-cell ${cls}">${siteLinesHtml(txt)}</div>`;
+    return `<div class="site-cell ${cls}">${siteLinesHtml(txt, site.lines)}</div>`;
   }
 
   function table() {

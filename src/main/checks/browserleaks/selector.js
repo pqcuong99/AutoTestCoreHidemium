@@ -78,9 +78,10 @@ function normalizeSelList(fieldOrSel) {
   if (fieldOrSel.by) {
     list.push(fieldOrSel);
   } else {
-    if (fieldOrSel.xpath) list.push({ by: 'xpath', value: fieldOrSel.xpath });
-    if (fieldOrSel.css) list.push({ by: 'css', value: fieldOrSel.css });
-    if (fieldOrSel.js) list.push({ by: 'js', value: fieldOrSel.js });
+    // Cho phep css/xpath/js la string HOAC mang string / object
+    pushTyped(list, 'css', fieldOrSel.css);
+    pushTyped(list, 'xpath', fieldOrSel.xpath);
+    pushTyped(list, 'js', fieldOrSel.js);
     if (fieldOrSel.text) list.push({ by: 'text', value: fieldOrSel.text, exact: fieldOrSel.exact });
   }
 
@@ -95,6 +96,27 @@ function normalizeSelList(fieldOrSel) {
   }
 
   return list;
+}
+
+/** css/xpath/js: string | string[] | object | object[] → day vao list {by,value} */
+function pushTyped(list, by, raw) {
+  if (raw == null || raw === '') return;
+  const items = Array.isArray(raw) ? raw : [raw];
+  for (const item of items) {
+    if (item == null || item === '') continue;
+    if (typeof item === 'string') {
+      list.push({ by, value: item });
+      continue;
+    }
+    if (typeof item === 'object') {
+      // Da co by / css / xpath / js — de normalizeSelList xu ly 1 lan
+      if (item.by || item.css || item.xpath || item.js || item.sel || (item.h3 && item.cellLabel)) {
+        list.push(...normalizeSelList(item));
+      } else if (item.value != null) {
+        list.push({ by, value: String(item.value) });
+      }
+    }
+  }
 }
 
 /**
@@ -145,15 +167,9 @@ async function readOne(page, sel) {
         if (typeof src === 'function') {
           v = await page.evaluate(src);
         } else {
-          const code = String(src).trim();
-          // Cho phep "() => ..." hoac IIFE / expression
-          v = await page.evaluate(
-            code.startsWith('()') || code.startsWith('function')
-              ? `(${code})()`
-              : code
-          );
+          v = await page.evaluate(wrapJsSelector(String(src)));
         }
-        return trim(v);
+        return trimJsResult(v);
       }
       case 'tableCell': {
         // Sinh XPath bang helper — van dung duoc khi user chi biet h3 + label
@@ -172,4 +188,53 @@ function trim(v) {
   return String(v ?? '').trim();
 }
 
-module.exports = { textBySelector, normalizeSelList, readOne };
+/**
+ * Chuan hoa chuoi js selector truoc khi page.evaluate:
+ * - () => { ... } / function () { ... }  → goi truc tiep
+ * - expression 1 dong (khong co ;)     → evaluate nhu cu
+ * - nhieu cau lenh / co const/let/return → boc () => { ... }
+ *
+ * Luu y: script PHAI return gia tri (array/string). console.log khong du.
+ */
+function wrapJsSelector(src) {
+  const code = String(src || '').trim();
+  if (!code) return '() => ""';
+
+  if (/^(async\s*)?\(\s*\)\s*=>/.test(code) || /^async\s+function\b/.test(code) || /^function\b/.test(code)) {
+    return `(${code})()`;
+  }
+
+  // Expression don (khong block): document.querySelector(...).innerText
+  const looksLikeBlock =
+    /\b(const|let|var|return|if|for|while|function)\b/.test(code) ||
+    code.includes('\n') ||
+    code.includes(';');
+
+  if (!looksLikeBlock) {
+    return code;
+  }
+
+  // Neu user da co return → boc body; neu khong, van boc (ho se can them return)
+  return `(() => {\n${code}\n})()`;
+}
+
+/** Array → join \\n de Detail Log / compare doc duoc. */
+function trimJsResult(v) {
+  if (v == null) return '';
+  if (Array.isArray(v)) {
+    return v
+      .map((x) => String(x ?? '').trim())
+      .filter(Boolean)
+      .join('\n');
+  }
+  if (typeof v === 'object') {
+    try {
+      return JSON.stringify(v);
+    } catch {
+      return String(v);
+    }
+  }
+  return String(v).trim();
+}
+
+module.exports = { textBySelector, normalizeSelList, readOne, wrapJsSelector, trimJsResult };

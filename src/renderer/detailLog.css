@@ -181,6 +181,31 @@ body.dl-resizing-row * { cursor: row-resize !important; user-select: none !impor
 .site-pass { color: #86efac; }
 .site-fail { color: #fca5a5; }
 
+/* Highlight tung dong key (SiteHighlight) — uu tien hon mau ca o */
+.site-cell .kv-ok .kv-v { color: #cbd5e1; }
+.site-cell .kv-mismatch {
+  background: rgba(220, 38, 38, 0.18);
+  border-radius: 4px;
+  padding: 1px 4px;
+}
+.site-cell .kv-mismatch .kv-k,
+.site-cell .kv-mismatch .kv-v { color: #fecaca; font-weight: 600; }
+.site-cell .kv-no-config {
+  background: rgba(217, 119, 6, 0.2);
+  border-radius: 4px;
+  padding: 1px 4px;
+}
+.site-cell .kv-no-config .kv-k,
+.site-cell .kv-no-config .kv-v { color: #fcd34d; }
+.site-cell .kv-missing-web {
+  background: rgba(147, 51, 234, 0.18);
+  border-radius: 4px;
+  padding: 1px 4px;
+}
+.site-cell .kv-missing-web .kv-k,
+.site-cell .kv-missing-web .kv-v { color: #e9d5ff; }
+.site-cell .kv-info .kv-v { color: #94a3b8; }
+
 .dl-log-head {
   padding: 6px 14px; font-size: 10px; text-transform: uppercase; letter-spacing: .6px;
   color: var(--muted); border-top: 1px solid var(--border); background: var(--bg-2);

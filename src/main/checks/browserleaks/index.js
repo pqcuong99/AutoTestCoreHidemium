@@ -14,6 +14,9 @@ const { WEBSITES } = require('../../../shared/websites');
 const { maybeBase64 } = require('../../configMapper');
 const { openPage, textBySelector } = require('./cdp');
 const { resolve: resolvePlatform } = require('../../../shared/platformPolicy');
+const {
+  summarizeFieldResults,
+} = require('../../../shared/siteHighlight');
 
 const SITE = WEBSITES.find((w) => w.key === 'browserleaks');
 const isDev = process.argv.includes('--dev');
@@ -117,10 +120,11 @@ function compareOne(field, expected, actual) {
   }
 
   if (actual == null || actual === '') {
-    // Config co nhung web khong show / khong scrape duoc -> bo qua, khong FAIL
+    // Config that nhung web khong show — highlight missingOnWeb (khong im lang SKIP)
     return {
-      pass: true,
+      pass: false,
       skipped: true,
+      missingOnWeb: true,
       detail: `${field.label}: skipped (not on page)`,
     };
   }
@@ -286,6 +290,7 @@ async function scrapePage(page, checkKeys, configMap, step, platform) {
           actual,
           pass: true,
           skipped: true,
+          infoOnly: true,
           detail: actual
             ? `${field.label}: ${actual} (config=default, chi hien thi)`
             : `${field.label}: skipped (default, empty on page)`,
@@ -306,14 +311,21 @@ async function scrapePage(page, checkKeys, configMap, step, platform) {
         actual,
         pass: cmp.pass,
         skipped: !!cmp.skipped,
+        missingOnWeb: !!cmp.missingOnWeb,
         detail: cmp.detail,
         match: field.match,
       });
 
-      const tag = cmp.skipped ? 'SKIP' : cmp.pass ? 'PASS' : 'FAIL';
+      const tag = cmp.missingOnWeb
+        ? 'MISSING_WEB'
+        : cmp.skipped
+          ? 'SKIP'
+          : cmp.pass
+            ? 'PASS'
+            : 'FAIL';
       step(
         `BrowserLeaks [${checkKey}/${field.label}]: ${tag} — ${cmp.detail}`,
-        cmp.pass || cmp.skipped ? 'ok' : 'warn'
+        cmp.pass || (cmp.skipped && !cmp.missingOnWeb) ? 'ok' : 'warn'
       );
     }
   }
@@ -430,82 +442,17 @@ function fieldsFromWebGpuBundle(bundle, configMap) {
 }
 
 /**
- * Hien thi dong field. discoverMode: giu toan bo key/features tren web.
- */
-function displayLinesForField(f, { discoverMode }) {
-  const a = String(f.actual || '').trim();
-  if (!a) return [];
-
-  const mark = !f.skipped && !f.pass ? ' ✗' : f.noConfig ? ' ⚠ no config' : '';
-
-  const isFeatures =
-    f.match === 'featureSet' ||
-    /features/i.test(f.label || '') ||
-    /features/i.test(f.configKey || '');
-
-  if (a.includes('\n') || isFeatures) {
-    const lines = a
-      .split(/\r?\n/)
-      .map((l) => l.trim())
-      .filter(Boolean);
-
-    if (discoverMode && isFeatures && f.expected) {
-      const want = new Set(
-        String(f.expected)
-          .split(/[,;]+/)
-          .map((s) => s.trim().toLowerCase())
-          .filter(Boolean)
-      );
-      return lines.map((l) => {
-        const name = (l.split(':')[0] || '').trim().toLowerCase();
-        const on = /:\s*true\s*$/i.test(l);
-        let suffix = mark;
-        if (want.size && on && !want.has(name)) suffix = ' ⚠ no config';
-        if (want.size && want.has(name) && !on) suffix = ' ✗';
-        return (l.includes(':') ? l : `${f.label}: ${l}`) + suffix;
-      });
-    }
-
-    return lines.map((l) => (l.includes(':') ? l : `${f.label}: ${l}`) + mark);
-  }
-
-  return [`${f.label}: ${a}${mark}`];
-}
-
-/**
- * Gom ket qua field -> 1 o site tren Detail Log.
- * webgl_param / webgpu: hien TAT CA key tren web; thieu config => ⚠ no config.
+ * Gom ket qua field -> 1 o site tren Detail Log (qua shared siteHighlight).
  */
 function summarize(fieldResults, checkKey) {
-  if (!fieldResults || !fieldResults.length) {
-    return { state: 'skipped', value: '-', pass: false };
-  }
-
   const discover = checkKey === 'webgl_param' || checkKey === 'webgpu';
-  const scored = fieldResults.filter((f) => !f.skipped && f.expected !== '');
-  const shown = fieldResults.filter((f) => String(f.actual || '').trim() !== '');
+  return summarizeFieldResults(fieldResults, { discoverMode: discover });
+}
 
-  if (!shown.length && !scored.length) {
-    return { state: 'skipped', value: '-', pass: false };
-  }
-
-  const failed = scored.filter((f) => !f.pass);
-  const missingConfig = shown.filter((f) => f.noConfig);
-  const lines = shown.flatMap((f) => displayLinesForField(f, { discoverMode: discover }));
-
-  if (!scored.length) {
-    return {
-      state: missingConfig.length ? 'fail' : 'skipped',
-      value: lines.join('\n') || '-',
-      pass: false,
-    };
-  }
-
-  return {
-    state: failed.length || (discover && missingConfig.length) ? 'fail' : 'pass',
-    value: lines.join('\n') || '-',
-    pass: failed.length === 0 && !(discover && missingConfig.length),
-  };
+/** @deprecated — dung SiteHighlight.formatFieldLines; giu export neu can. */
+function displayLinesForField(f, { discoverMode }) {
+  const { formatFieldLines } = require('../../../shared/siteHighlight');
+  return formatFieldLines(f, { discoverMode }).map((l) => l.text);
 }
 
 /**

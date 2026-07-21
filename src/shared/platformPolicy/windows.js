@@ -7,7 +7,7 @@ module.exports = {
   label: 'Windows',
   supported: true,
   /** checkKey bo qua tren BrowserLeaks (va site khac neu runner doc policy). */
-  skipChecks: ['font', 'mac_address', 'desktop_name'],
+  skipChecks: ['mac_address', 'desktop_name'],
   /** configKey skip so sanh (khong co tren web / che do spoof). */
   skipConfigKeys: [
     'hidemium.navigator.physical_memory',

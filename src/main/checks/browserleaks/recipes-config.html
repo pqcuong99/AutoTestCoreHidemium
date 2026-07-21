@@ -81,9 +81,18 @@
     }
     .chip button { padding: 2px 6px; font-size: 11px; border-radius: 999px; }
     label.check { display: flex; align-items: center; gap: 8px; margin: 8px 0; }
+    .sel-row {
+      display: grid; grid-template-columns: 120px 1fr auto; gap: 8px;
+      align-items: start; margin-bottom: 8px; padding: 8px;
+      background: #0b1220; border: 1px solid var(--border); border-radius: 8px;
+    }
+    .sel-row .sel-extra { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr 120px; gap: 8px; }
+    .sel-row textarea { min-height: 52px; }
     @media (max-width: 960px) {
       main { grid-template-columns: 1fr; }
       .split { grid-template-columns: 1fr; }
+      .sel-row { grid-template-columns: 1fr; }
+      .sel-row .sel-extra { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -184,8 +193,12 @@
 
       <div class="tab" id="tab-fields" hidden>
         <div class="card">
-          <h2>FIELD_OVERRIDE — selector / match / skip / selMode</h2>
-          <p class="hint">Hỗ trợ: tableCell · xpath · css · js · sel (JSON array). match: exact | includes | bool | formFactors | featureSet</p>
+          <h2>FIELD_OVERRIDE — 1 hoặc nhiều selector / match / skip</h2>
+          <p class="hint">
+            Mỗi key có thể có nhiều selector (css / xpath / js / tableCell).
+            <code>selMode=first</code>: lấy giá trị đầu tiên có text.
+            <code>merge</code>: gộp tất cả (xuống dòng).
+          </p>
 
           <label>configKey</label>
           <input id="f-key" placeholder="hidemium.navigator.hardware_concurrency" list="f-key-list" />
@@ -211,52 +224,25 @@
 
           <div class="split" style="margin-top:8px">
             <div>
-              <label>selector type</label>
-              <select id="f-type">
-                <option value="tableCell">tableCell (h3 + cellLabel)</option>
-                <option value="xpath">xpath</option>
-                <option value="css">css</option>
-                <option value="js">js (page.evaluate)</option>
-                <option value="sel">sel (JSON array selectors)</option>
-              </select>
-            </div>
-            <div>
-              <label>selMode (khi type = sel)</label>
+              <label>selMode</label>
               <select id="f-selmode">
-                <option value="">(default first)</option>
-                <option value="first">first</option>
-                <option value="merge">merge</option>
+                <option value="first">first — selector đầu tiên có text</option>
+                <option value="merge">merge — gộp mọi selector có text</option>
               </select>
             </div>
-          </div>
-
-          <div class="row" style="margin-top:8px">
-            <label class="check fixed"><input type="checkbox" id="f-base64" /> base64</label>
-            <label class="check fixed"><input type="checkbox" id="f-skip" /> skip field</label>
-          </div>
-
-          <div id="box-tablecell" style="margin-top:8px">
-            <div class="split">
-              <div>
-                <label>h3</label>
-                <input id="f-h3" placeholder="Navigator Object" />
-              </div>
-              <div>
-                <label>h3Mode</label>
-                <select id="f-h3mode">
-                  <option value="">(inherit section)</option>
-                  <option value="exact">exact</option>
-                  <option value="contains">contains</option>
-                </select>
-              </div>
+            <div class="row" style="margin-top:18px">
+              <label class="check fixed"><input type="checkbox" id="f-base64" /> base64</label>
+              <label class="check fixed"><input type="checkbox" id="f-skip" /> skip field</label>
             </div>
-            <label style="margin-top:8px;display:block">cellLabel</label>
-            <input id="f-cell" placeholder="hardwareConcurrency" />
           </div>
 
-          <div id="box-path" hidden style="margin-top:8px">
-            <label id="f-path-label">xpath / css / js / sel JSON</label>
-            <textarea id="f-path" class="tall" placeholder="#css  hoặc  //xpath  hoặc  () => ...  hoặc  [{&quot;css&quot;:&quot;#a&quot;},{&quot;css&quot;:&quot;#b&quot;}]"></textarea>
+          <div style="margin-top:12px">
+            <div class="row">
+              <strong style="flex:1">Danh sách selector</strong>
+              <button type="button" class="fixed primary" id="btn-add-sel-row">+ Thêm selector</button>
+            </div>
+            <div id="f-sel-rows"></div>
+            <p class="hint" style="margin-top:6px">Để trống hết + không tick skip → lỗi. 1 selector lưu dạng css/xpath/js; ≥2 lưu dạng <code>sel: [...]</code>.</p>
           </div>
 
           <div class="row" style="margin-top:12px">
@@ -549,16 +535,129 @@
     }
 
     function toggleFieldBoxes() {
-      const t = $('f-type').value;
-      $('box-tablecell').hidden = t !== 'tableCell';
-      $('box-path').hidden = t === 'tableCell';
-      const labels = {
-        xpath: 'xpath',
-        css: 'css selector',
-        js: 'js (() => ... hoặc expression)',
-        sel: 'sel JSON array — vd [{"css":"#a"},{"css":"#b"}]',
-      };
-      $('f-path-label').textContent = labels[t] || 'value';
+      /* multi-selector UI — khong can toggle type cu */
+    }
+
+    /** @type {Array<{type:string, value:string, h3?:string, h3Mode?:string, cellLabel?:string}>} */
+    let selRows = [];
+
+    function emptySelRow() {
+      return { type: 'css', value: '', h3: '', h3Mode: 'exact', cellLabel: '' };
+    }
+
+    function renderSelRows() {
+      const box = $('f-sel-rows');
+      if (!selRows.length) selRows = [emptySelRow()];
+      box.innerHTML = selRows
+        .map((row, i) => {
+          const isTc = row.type === 'tableCell';
+          return `<div class="sel-row" data-sel-i="${i}">
+            <select data-sel-type="${i}">
+              <option value="css" ${row.type === 'css' ? 'selected' : ''}>css</option>
+              <option value="xpath" ${row.type === 'xpath' ? 'selected' : ''}>xpath</option>
+              <option value="js" ${row.type === 'js' ? 'selected' : ''}>js</option>
+              <option value="tableCell" ${row.type === 'tableCell' ? 'selected' : ''}>tableCell</option>
+            </select>
+            ${
+              isTc
+                ? `<div class="sel-extra">
+                    <input data-sel-h3="${i}" placeholder="h3" value="${esc(row.h3 || '')}" />
+                    <input data-sel-cell="${i}" placeholder="cellLabel" value="${esc(row.cellLabel || '')}" />
+                    <select data-sel-h3mode="${i}">
+                      <option value="exact" ${(row.h3Mode || 'exact') === 'exact' ? 'selected' : ''}>exact</option>
+                      <option value="contains" ${row.h3Mode === 'contains' ? 'selected' : ''}>contains</option>
+                    </select>
+                  </div>`
+                : `<textarea data-sel-val="${i}" placeholder="${
+                    row.type === 'js' ? '() => ...' : row.type === 'xpath' ? '//h3...' : '#css-id'
+                  }">${esc(row.value || '')}</textarea>`
+            }
+            <button type="button" class="danger" data-del-sel="${i}">Xoá</button>
+          </div>`;
+        })
+        .join('');
+    }
+
+    function syncSelRowsFromDom() {
+      document.querySelectorAll('[data-sel-type]').forEach((el) => {
+        const i = Number(el.dataset.selType);
+        if (!selRows[i]) return;
+        selRows[i].type = el.value;
+      });
+      document.querySelectorAll('[data-sel-val]').forEach((el) => {
+        const i = Number(el.dataset.selVal);
+        if (!selRows[i]) return;
+        selRows[i].value = el.value;
+      });
+      document.querySelectorAll('[data-sel-h3]').forEach((el) => {
+        const i = Number(el.dataset.selH3);
+        if (!selRows[i]) return;
+        selRows[i].h3 = el.value;
+      });
+      document.querySelectorAll('[data-sel-cell]').forEach((el) => {
+        const i = Number(el.dataset.selCell);
+        if (!selRows[i]) return;
+        selRows[i].cellLabel = el.value;
+      });
+      document.querySelectorAll('[data-sel-h3mode]').forEach((el) => {
+        const i = Number(el.dataset.selH3mode);
+        if (!selRows[i]) return;
+        selRows[i].h3Mode = el.value;
+      });
+    }
+
+    function ovToSelRows(ov) {
+      if (!ov) return [emptySelRow()];
+      if (Array.isArray(ov.sel) && ov.sel.length) {
+        return ov.sel.map((s) => {
+          if (s.css) return { type: 'css', value: s.css, h3: '', h3Mode: 'exact', cellLabel: '' };
+          if (s.xpath) return { type: 'xpath', value: s.xpath, h3: '', h3Mode: 'exact', cellLabel: '' };
+          if (s.js || s.by === 'js')
+            return {
+              type: 'js',
+              value: s.js || s.value || '',
+              h3: '',
+              h3Mode: 'exact',
+              cellLabel: '',
+            };
+          if (s.by === 'tableCell' || (s.h3 && (s.cellLabel || s.label)))
+            return {
+              type: 'tableCell',
+              value: '',
+              h3: s.h3 || '',
+              h3Mode: s.h3Mode || 'exact',
+              cellLabel: s.cellLabel || s.label || '',
+            };
+          if (s.by === 'css') return { type: 'css', value: s.value || '', h3: '', h3Mode: 'exact', cellLabel: '' };
+          if (s.by === 'xpath')
+            return { type: 'xpath', value: s.value || '', h3: '', h3Mode: 'exact', cellLabel: '' };
+          return emptySelRow();
+        });
+      }
+      if (Array.isArray(ov.css)) {
+        return ov.css.map((v) => ({
+          type: 'css',
+          value: typeof v === 'string' ? v : v.css || v.value || '',
+          h3: '',
+          h3Mode: 'exact',
+          cellLabel: '',
+        }));
+      }
+      if (ov.css) return [{ type: 'css', value: ov.css, h3: '', h3Mode: 'exact', cellLabel: '' }];
+      if (ov.xpath) return [{ type: 'xpath', value: ov.xpath, h3: '', h3Mode: 'exact', cellLabel: '' }];
+      if (ov.js || ov.by === 'js')
+        return [{ type: 'js', value: ov.js || ov.value || '', h3: '', h3Mode: 'exact', cellLabel: '' }];
+      if (ov.h3 || ov.cellLabel)
+        return [
+          {
+            type: 'tableCell',
+            value: '',
+            h3: ov.h3 || '',
+            h3Mode: ov.h3Mode || 'exact',
+            cellLabel: ov.cellLabel || '',
+          },
+        ];
+      return [emptySelRow()];
     }
 
     function fillFieldForm(key) {
@@ -568,67 +667,59 @@
       $('f-match').value = ov.match || '';
       $('f-base64').checked = !!ov.base64;
       $('f-skip').checked = !!ov.skip;
-      $('f-h3').value = ov.h3 || '';
-      $('f-h3mode').value = ov.h3Mode || '';
-      $('f-cell').value = ov.cellLabel || '';
-      $('f-selmode').value = ov.selMode || '';
-      if (ov.sel) {
-        $('f-type').value = 'sel';
-        $('f-path').value = JSON.stringify(ov.sel, null, 2);
-      } else if (ov.xpath) {
-        $('f-type').value = 'xpath';
-        $('f-path').value = ov.xpath;
-      } else if (ov.css) {
-        $('f-type').value = 'css';
-        $('f-path').value = ov.css;
-      } else if (ov.by === 'js' || ov.js) {
-        $('f-type').value = 'js';
-        $('f-path').value = ov.value || ov.js || '';
-      } else {
-        $('f-type').value = 'tableCell';
-        $('f-path').value = '';
-      }
-      toggleFieldBoxes();
+      $('f-selmode').value = ov.selMode || 'first';
+      selRows = ovToSelRows(ov);
+      renderSelRows();
     }
 
     function collectFieldOverride() {
       const key = $('f-key').value.trim();
       if (!key) throw new Error('Thiếu configKey');
-      const type = $('f-type').value;
+      syncSelRowsFromDom();
+
       const ov = {};
       if ($('f-label').value.trim()) ov.label = $('f-label').value.trim();
       if ($('f-match').value) ov.match = $('f-match').value;
       if ($('f-base64').checked) ov.base64 = true;
       if ($('f-skip').checked) ov.skip = true;
 
-      if (type === 'xpath') {
-        const v = $('f-path').value.trim();
-        if (!v && !ov.skip) throw new Error('Thiếu xpath');
-        if (v) ov.xpath = v;
-      } else if (type === 'css') {
-        const v = $('f-path').value.trim();
-        if (!v && !ov.skip) throw new Error('Thiếu css');
-        if (v) ov.css = v;
-      } else if (type === 'js') {
-        const v = $('f-path').value.trim();
-        if (!v && !ov.skip) throw new Error('Thiếu js');
-        if (v) ov.js = v;
-      } else if (type === 'sel') {
-        const raw = $('f-path').value.trim();
-        if (!raw && !ov.skip) throw new Error('Thiếu sel JSON');
-        if (raw) {
-          const parsed = JSON.parse(raw);
-          if (!Array.isArray(parsed)) throw new Error('sel phải là JSON array');
-          ov.sel = parsed;
+      if (ov.skip) return { key, ov };
+
+      const items = [];
+      for (const row of selRows) {
+        if (row.type === 'tableCell') {
+          if (!row.cellLabel && !row.h3) continue;
+          const o = {};
+          if (row.h3) o.h3 = row.h3.trim();
+          if (row.cellLabel) o.cellLabel = row.cellLabel.trim();
+          if (row.h3Mode) o.h3Mode = row.h3Mode;
+          items.push(o);
+        } else {
+          const v = (row.value || '').trim();
+          if (!v) continue;
+          if (row.type === 'css') items.push({ css: v });
+          else if (row.type === 'xpath') items.push({ xpath: v });
+          else if (row.type === 'js') items.push({ js: v });
         }
-        if ($('f-selmode').value) ov.selMode = $('f-selmode').value;
+      }
+
+      if (!items.length) throw new Error('Cần ít nhất 1 selector (hoặc tick skip)');
+
+      const mode = $('f-selmode').value || 'first';
+      if (items.length === 1) {
+        const one = items[0];
+        if (one.css) ov.css = one.css;
+        else if (one.xpath) ov.xpath = one.xpath;
+        else if (one.js) ov.js = one.js;
+        else {
+          if (one.h3) ov.h3 = one.h3;
+          if (one.cellLabel) ov.cellLabel = one.cellLabel;
+          if (one.h3Mode) ov.h3Mode = one.h3Mode;
+        }
+        if (mode === 'merge') ov.selMode = 'merge';
       } else {
-        if ($('f-h3').value.trim()) ov.h3 = $('f-h3').value.trim();
-        if ($('f-h3mode').value) ov.h3Mode = $('f-h3mode').value;
-        if ($('f-cell').value.trim()) ov.cellLabel = $('f-cell').value.trim();
-        if (!ov.skip && !ov.cellLabel && !ov.h3 && !ov.label) {
-          throw new Error('tableCell cần cellLabel (hoặc h3), hoặc tick skip');
-        }
+        ov.sel = items;
+        ov.selMode = mode;
       }
       return { key, ov };
     }
@@ -753,7 +844,26 @@
       renderSection();
     });
 
-    $('f-type').onchange = toggleFieldBoxes;
+    $('btn-add-sel-row').onclick = () => {
+      syncSelRowsFromDom();
+      selRows.push(emptySelRow());
+      renderSelRows();
+    };
+    $('f-sel-rows').addEventListener('click', (e) => {
+      const del = e.target.closest('[data-del-sel]');
+      if (!del) return;
+      syncSelRowsFromDom();
+      const i = Number(del.dataset.delSel);
+      selRows.splice(i, 1);
+      if (!selRows.length) selRows = [emptySelRow()];
+      renderSelRows();
+    });
+    $('f-sel-rows').addEventListener('change', (e) => {
+      if (e.target.dataset.selType != null) {
+        syncSelRowsFromDom();
+        renderSelRows();
+      }
+    });
     $('btn-save-field').onclick = () => {
       try {
         const { key, ov } = collectFieldOverride();
@@ -838,6 +948,7 @@
     };
 
     toggleFieldBoxes();
+    renderSelRows();
     loadConfig();
   </script>
 </body>

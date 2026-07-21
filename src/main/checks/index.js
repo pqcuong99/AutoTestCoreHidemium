@@ -148,6 +148,7 @@ async function runProfileCheck(lane, checkKeys, ctx) {
           value: r.value,
           pass: r.pass,
           state: r.state,
+          lines: r.lines || null,
         });
       }
       emit({ type: 'site-done', uuid, siteKey: w.key });

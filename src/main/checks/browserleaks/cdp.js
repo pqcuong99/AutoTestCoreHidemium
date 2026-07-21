@@ -178,6 +178,21 @@ async function openPage(openData, url, opts = {}) {
         .catch(() => {});
       await page.waitForTimeout(800);
     }
+
+    // Fonts: doi #fonts-metrics-output co noi dung
+    if (/browserleaks\.com\/fonts/i.test(url)) {
+      await page
+        .waitForFunction(
+          () => {
+            const ta = document.getElementById('fonts-metrics-output');
+            const v = (ta && ta.value) || '';
+            return v.trim().length > 20 && v.includes('\t');
+          },
+          { timeout: 30000 }
+        )
+        .catch(() => {});
+      await page.waitForTimeout(500);
+    }
   } catch (err) {
     if (signal) signal.removeEventListener('abort', onAbort);
     if (created) await page.close().catch(() => {});

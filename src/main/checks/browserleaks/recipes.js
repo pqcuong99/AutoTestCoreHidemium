@@ -15,12 +15,15 @@ const PAGES = {
   javascript: "https://browserleaks.com/javascript",
   webgl: "https://browserleaks.com/webgl",
   canvas: "https://browserleaks.com/canvas",
-  webgpu: "https://browserleaks.com/webgpu"
+  webgpu: "https://browserleaks.com/webgpu",
+  fonts: "https://browserleaks.com/fonts"
 };
 
-/** Check khong chay tren BrowserLeaks (Windows default).
- *  Runtime uu tien platformPolicy.skipChecks — giu set nay lam fallback. */
-const SKIP_CHECKS = new Set(["font", "mac_address", "desktop_name"]);
+/** Check khong chay tren BrowserLeaks (font kho scrape; mac/desktop khong co tren web). */
+const SKIP_CHECKS = new Set([
+  "mac_address",
+  "desktop_name"
+]);
 
 // =============================================================================
 // 2) checkKey -> page (chi doi chuoi page)
@@ -42,7 +45,8 @@ const PAGE_OF = {
   network: "javascript",
   webgl: "webgl",
   webgl_param: "webgl",
-  webgpu: "webgpu"
+  webgpu: "webgpu",
+  font: "fonts"
 };
 
 // =============================================================================
@@ -120,7 +124,7 @@ const SECTION_OF = {
 };
 
 // =============================================================================
-// 4) OVERRIDE theo configKey — CHI SUA xpath / css / cellLabel / h3 / match
+// 4) OVERRIDE theo configKey — xpath / css / sel / selMode / js / skip / match
 //    Key = dung config key trong config.hidemium
 // =============================================================================
 const FIELD_OVERRIDE = {
@@ -252,7 +256,6 @@ const FIELD_OVERRIDE = {
     css: "#js-type"
   },
   "hidemium.webgl.mode": {
-    // che do spoof (noise/off) — skip trong compare; khong so voi #gl-context
     skip: true
   },
   "hidemium.webgl.vendor": {
@@ -276,7 +279,6 @@ const FIELD_OVERRIDE = {
   },
   "hidemium.webgpu.vendor": {
     match: "includes",
-    // #gpu-info row: 1=powerPreference, 2=isFallbackAdapter, 3=vendor, 4=architecture
     css: "#gpu-info > tr:nth-child(3) > td:nth-child(2)"
   },
   "hidemium.webgpu.architecture": {
@@ -285,27 +287,31 @@ const FIELD_OVERRIDE = {
   },
   "hidemium.webgpu.features": {
     match: "featureSet",
-    // Mot dong / feature: "name: True" — UI flex ngang, khong xuong dong giua ten va True
-    js: `() => [...document.querySelectorAll('#gpu-features tr')].map((tr) => {
-      const name = (tr.cells[0] && tr.cells[0].innerText || '').trim();
-      if (!name) return '';
-      const val = (tr.cells[1] && tr.cells[1].innerText || '').replace(/\\s+/g, ' ').trim();
-      const on = /true|✔/i.test(val);
-      return name + ': ' + (on ? 'True' : 'False');
-    }).filter(Boolean).join('\\n')`
+    js: "() => [...document.querySelectorAll('#gpu-features tr')].map((tr) => {\n      const name = (tr.cells[0] && tr.cells[0].innerText || '').trim();\n      if (!name) return '';\n      const val = (tr.cells[1] && tr.cells[1].innerText || '').replace(/\\s+/g, ' ').trim();\n      const on = /true|✔/i.test(val);\n      return name + ': ' + (on ? 'True' : 'False');\n    }).filter(Boolean).join('\\n')"
+  },
+  "hidemium.fonts": {
+    match: "includes",
+    css: "#fonts-metrics-hash"
+  },
+  "hidemium.webgl.report_hash": {
+    label: "report hash",
+    css: "#gl-report-hash"
+  },
+  "hidemium.webgl.image_hash": {
+    label: "image hash",
+    css: "#gl-image-hash"
   }
 };
 
 /** Config snake_case / typo -> id tren /webgl (null = khong co tren page) */
 const WEBGL_PARAM_ID = {
-  max_anisotropy: 'MAX_TEXTURE_MAX_ANISOTROPY_EXT',
-  max_render_buffer_size: 'MAX_RENDERBUFFER_SIZE',
-  max_vertext_exture_image_units: 'MAX_VERTEX_TEXTURE_IMAGE_UNITS',
-  gl_version: 'VERSION',
-  gl_sample: 'MAX_SAMPLES',
-  shading_language: 'SHADING_LANGUAGE_VERSION',
-  shading_language_version: 'SHADING_LANGUAGE_VERSION',
-  // Cac param config co nhung BrowserLeaks khong show -> bo
+  max_anisotropy: "MAX_TEXTURE_MAX_ANISOTROPY_EXT",
+  max_render_buffer_size: "MAX_RENDERBUFFER_SIZE",
+  max_vertext_exture_image_units: "MAX_VERTEX_TEXTURE_IMAGE_UNITS",
+  gl_version: "VERSION",
+  gl_sample: "MAX_SAMPLES",
+  shading_language: "SHADING_LANGUAGE_VERSION",
+  shading_language_version: "SHADING_LANGUAGE_VERSION",
   webgl_extension: null,
   webgl_extension_2: null,
   fragment_shader_high_float: null,
@@ -335,131 +341,136 @@ const WEBGL_PARAM_ID = {
   max_elements_vertices: null,
   max_server_wait_timeout: null,
   subpixel_bits: null,
-  max_inter_stage_shader_components: null,
+  max_inter_stage_shader_components: null
 };
 
 /** Chi cac id that su co tren https://browserleaks.com/webgl (doi chieu view-source) */
 const WEBGL_PAGE_IDS = new Set([
-  'ALIASED_LINE_WIDTH_RANGE',
-  'ALIASED_POINT_SIZE_RANGE',
-  'ALPHA_BITS',
-  'BLUE_BITS',
-  'DEPTH_BITS',
-  'FRAGMENT_SHADER', // Best Float Precision (fragment)
-  'GREEN_BITS',
-  'HIGH_FLOAT_HIGH_INT', // Float/Int Precision
-  'MAX_3D_TEXTURE_SIZE',
-  'MAX_ARRAY_TEXTURE_LAYERS',
-  'MAX_COLOR_ATTACHMENTS',
-  'MAX_COMBINED_FRAGMENT_UNIFORM_COMPONENTS',
-  'MAX_COMBINED_TEXTURE_IMAGE_UNITS',
-  'MAX_COMBINED_UNIFORM_BLOCKS',
-  'MAX_COMBINED_VERTEX_UNIFORM_COMPONENTS',
-  'MAX_CUBE_MAP_TEXTURE_SIZE',
-  'MAX_DRAW_BUFFERS',
-  'MAX_DRAW_BUFFERS_WEBGL',
-  'MAX_FRAGMENT_INPUT_COMPONENTS',
-  'MAX_FRAGMENT_UNIFORM_BLOCKS',
-  'MAX_FRAGMENT_UNIFORM_COMPONENTS',
-  'MAX_FRAGMENT_UNIFORM_VECTORS',
-  'MAX_PROGRAM_TEXEL_OFFSET',
-  'MAX_RENDERBUFFER_SIZE',
-  'MAX_SAMPLES',
-  'MAX_TEXTURE_IMAGE_UNITS',
-  'MAX_TEXTURE_LOD_BIAS',
-  'MAX_TEXTURE_MAX_ANISOTROPY_EXT',
-  'MAX_TEXTURE_SIZE',
-  'MAX_TRANSFORM_FEEDBACK_INTERLEAVED_COMPONENTS',
-  'MAX_TRANSFORM_FEEDBACK_SEPARATE_ATTRIBS',
-  'MAX_TRANSFORM_FEEDBACK_SEPARATE_COMPONENTS',
-  'MAX_UNIFORM_BLOCK_SIZE',
-  'MAX_UNIFORM_BUFFER_BINDINGS',
-  'MAX_VARYING_COMPONENTS',
-  'MAX_VARYING_VECTORS',
-  'MAX_VERTEX_ATTRIBS',
-  'MAX_VERTEX_OUTPUT_COMPONENTS',
-  'MAX_VERTEX_TEXTURE_IMAGE_UNITS',
-  'MAX_VERTEX_UNIFORM_BLOCKS',
-  'MAX_VERTEX_UNIFORM_COMPONENTS',
-  'MAX_VERTEX_UNIFORM_VECTORS',
-  'MAX_VIEWPORT_DIMS',
-  'MIN_PROGRAM_TEXEL_OFFSET',
-  'RED_BITS',
-  'SHADING_LANGUAGE_VERSION',
-  'STENCIL_BITS',
-  'UNIFORM_BUFFER_OFFSET_ALIGNMENT',
-  'VERSION',
-  'VERTEX_SHADER', // Best Float Precision (vertex)
+  "ALIASED_LINE_WIDTH_RANGE",
+  "ALIASED_POINT_SIZE_RANGE",
+  "ALPHA_BITS",
+  "BLUE_BITS",
+  "DEPTH_BITS",
+  "FRAGMENT_SHADER",
+  "GREEN_BITS",
+  "HIGH_FLOAT_HIGH_INT",
+  "MAX_3D_TEXTURE_SIZE",
+  "MAX_ARRAY_TEXTURE_LAYERS",
+  "MAX_COLOR_ATTACHMENTS",
+  "MAX_COMBINED_FRAGMENT_UNIFORM_COMPONENTS",
+  "MAX_COMBINED_TEXTURE_IMAGE_UNITS",
+  "MAX_COMBINED_UNIFORM_BLOCKS",
+  "MAX_COMBINED_VERTEX_UNIFORM_COMPONENTS",
+  "MAX_CUBE_MAP_TEXTURE_SIZE",
+  "MAX_DRAW_BUFFERS",
+  "MAX_DRAW_BUFFERS_WEBGL",
+  "MAX_FRAGMENT_INPUT_COMPONENTS",
+  "MAX_FRAGMENT_UNIFORM_BLOCKS",
+  "MAX_FRAGMENT_UNIFORM_COMPONENTS",
+  "MAX_FRAGMENT_UNIFORM_VECTORS",
+  "MAX_PROGRAM_TEXEL_OFFSET",
+  "MAX_RENDERBUFFER_SIZE",
+  "MAX_SAMPLES",
+  "MAX_TEXTURE_IMAGE_UNITS",
+  "MAX_TEXTURE_LOD_BIAS",
+  "MAX_TEXTURE_MAX_ANISOTROPY_EXT",
+  "MAX_TEXTURE_SIZE",
+  "MAX_TRANSFORM_FEEDBACK_INTERLEAVED_COMPONENTS",
+  "MAX_TRANSFORM_FEEDBACK_SEPARATE_ATTRIBS",
+  "MAX_TRANSFORM_FEEDBACK_SEPARATE_COMPONENTS",
+  "MAX_UNIFORM_BLOCK_SIZE",
+  "MAX_UNIFORM_BUFFER_BINDINGS",
+  "MAX_VARYING_COMPONENTS",
+  "MAX_VARYING_VECTORS",
+  "MAX_VERTEX_ATTRIBS",
+  "MAX_VERTEX_OUTPUT_COMPONENTS",
+  "MAX_VERTEX_TEXTURE_IMAGE_UNITS",
+  "MAX_VERTEX_UNIFORM_BLOCKS",
+  "MAX_VERTEX_UNIFORM_COMPONENTS",
+  "MAX_VERTEX_UNIFORM_VECTORS",
+  "MAX_VIEWPORT_DIMS",
+  "MIN_PROGRAM_TEXEL_OFFSET",
+  "RED_BITS",
+  "SHADING_LANGUAGE_VERSION",
+  "STENCIL_BITS",
+  "UNIFORM_BUFFER_OFFSET_ALIGNMENT",
+  "VERSION",
+  "VERTEX_SHADER"
 ]);
 
 /** title= tren #gpu-limits (BrowserLeaks /webgpu) — doi chieu view-source */
 const WEBGPU_PAGE_LIMITS = new Set([
-  'maxTextureDimension1D',
-  'maxTextureDimension2D',
-  'maxTextureDimension3D',
-  'maxTextureArrayLayers',
-  'maxBindGroups',
-  'maxBindGroupsPlusVertexBuffers',
-  'maxBindingsPerBindGroup',
-  'maxDynamicUniformBuffersPerPipelineLayout',
-  'maxDynamicStorageBuffersPerPipelineLayout',
-  'maxSampledTexturesPerShaderStage',
-  'maxSamplersPerShaderStage',
-  'maxStorageBuffersPerShaderStage',
-  'maxStorageBuffersInVertexStage',
-  'maxStorageBuffersInFragmentStage',
-  'maxStorageTexturesPerShaderStage',
-  'maxStorageTexturesInVertexStage',
-  'maxStorageTexturesInFragmentStage',
-  'maxUniformBuffersPerShaderStage',
-  'maxUniformBufferBindingSize',
-  'maxStorageBufferBindingSize',
-  'minUniformBufferOffsetAlignment',
-  'minStorageBufferOffsetAlignment',
-  'maxVertexBuffers',
-  'maxBufferSize',
-  'maxVertexAttributes',
-  'maxVertexBufferArrayStride',
-  'maxInterStageShaderVariables',
-  'maxColorAttachments',
-  'maxColorAttachmentBytesPerSample',
-  'maxComputeWorkgroupStorageSize',
-  'maxComputeInvocationsPerWorkgroup',
-  'maxComputeWorkgroupSizeX',
-  'maxComputeWorkgroupSizeY',
-  'maxComputeWorkgroupSizeZ',
-  'maxComputeWorkgroupsPerDimension',
-  'maxImmediateSize',
+  "maxTextureDimension1D",
+  "maxTextureDimension2D",
+  "maxTextureDimension3D",
+  "maxTextureArrayLayers",
+  "maxBindGroups",
+  "maxBindGroupsPlusVertexBuffers",
+  "maxBindingsPerBindGroup",
+  "maxDynamicUniformBuffersPerPipelineLayout",
+  "maxDynamicStorageBuffersPerPipelineLayout",
+  "maxSampledTexturesPerShaderStage",
+  "maxSamplersPerShaderStage",
+  "maxStorageBuffersPerShaderStage",
+  "maxStorageBuffersInVertexStage",
+  "maxStorageBuffersInFragmentStage",
+  "maxStorageTexturesPerShaderStage",
+  "maxStorageTexturesInVertexStage",
+  "maxStorageTexturesInFragmentStage",
+  "maxUniformBuffersPerShaderStage",
+  "maxUniformBufferBindingSize",
+  "maxStorageBufferBindingSize",
+  "minUniformBufferOffsetAlignment",
+  "minStorageBufferOffsetAlignment",
+  "maxVertexBuffers",
+  "maxBufferSize",
+  "maxVertexAttributes",
+  "maxVertexBufferArrayStride",
+  "maxInterStageShaderVariables",
+  "maxColorAttachments",
+  "maxColorAttachmentBytesPerSample",
+  "maxComputeWorkgroupStorageSize",
+  "maxComputeInvocationsPerWorkgroup",
+  "maxComputeWorkgroupSizeX",
+  "maxComputeWorkgroupSizeY",
+  "maxComputeWorkgroupSizeZ",
+  "maxComputeWorkgroupsPerDimension",
+  "maxImmediateSize"
 ]);
 
 /** title= tren #gpu-info (Adapter Info) — doi chieu view-source */
 const WEBGPU_PAGE_INFO = new Set([
-  'powerPreference',
-  'isFallbackAdapter',
-  'vendor',
-  'architecture',
-  'device',
-  'description',
-  'driver',
-  'backend',
-  'type',
-  'memoryHeaps',
-  'd3dShaderModel',
-  'vkDriverVersion',
-  'subgroupMatrixConfigs',
-  'subgroupMaxSize',
-  'subgroupMinSize',
+  "powerPreference",
+  "isFallbackAdapter",
+  "vendor",
+  "architecture",
+  "device",
+  "description",
+  "driver",
+  "backend",
+  "type",
+  "memoryHeaps",
+  "d3dShaderModel",
+  "vkDriverVersion",
+  "subgroupMatrixConfigs",
+  "subgroupMaxSize",
+  "subgroupMinSize"
 ]);
 
 /** #js-* co tren /javascript cho battery + network */
-const JS_BATTERY_IDS = new Set(['charging', 'chargingTime', 'dischargingTime', 'level']);
+const JS_BATTERY_IDS = new Set([
+  "charging",
+  "chargingTime",
+  "dischargingTime",
+  "level"
+]);
 const JS_NETWORK_IDS = new Set([
-  'type',
-  'effectiveType',
-  'downlink',
-  'downlinkMax',
-  'rtt',
-  'saveData',
+  "type",
+  "effectiveType",
+  "downlink",
+  "downlinkMax",
+  "rtt",
+  "saveData"
 ]);
 // === END EDITABLE CONFIG ===
 
@@ -884,6 +895,29 @@ function xpathValue(h3, label, h3Mode = 'exact') {
 /**
  * Tao 1 field rule tu mapping + override.
  * Chi set selector: xpath | css | sel | by+value | tableCell (mac dinh).
+ * css/xpath/js co the la string HOAC mang → build thanh sel[].
+ */
+function normalizeOverrideMulti(ov) {
+  const out = [];
+  const push = (by, raw) => {
+    if (raw == null || raw === '') return;
+    const items = Array.isArray(raw) ? raw : [raw];
+    for (const item of items) {
+      if (item == null || item === '') continue;
+      if (typeof item === 'string') out.push({ [by]: item });
+      else if (typeof item === 'object') out.push(item);
+    }
+  };
+  push('css', ov.css);
+  push('xpath', ov.xpath);
+  push('js', ov.js);
+  // Chi coi la "multi" khi tong > 1 entry (1 string van giu css/xpath/js don)
+  return out.length > 1 ? out : null;
+}
+
+/**
+ * Tao 1 field rule tu mapping + override.
+ * Chi set selector: xpath | css | sel | by+value | tableCell (mac dinh).
  */
 function buildField(checkKey, mappingField) {
   const section = SECTION_OF[checkKey] || { h3: checkKey, h3Mode: 'contains' };
@@ -905,6 +939,16 @@ function buildField(checkKey, mappingField) {
     return {
       ...base,
       sel: ov.sel,
+      selMode: ov.selMode || 'first',
+      match: ov.match || base.match,
+    };
+  }
+  // css/xpath/js mang → chuan hoa thanh sel[]
+  const multi = normalizeOverrideMulti(ov);
+  if (multi) {
+    return {
+      ...base,
+      sel: multi,
       selMode: ov.selMode || 'first',
       match: ov.match || base.match,
     };

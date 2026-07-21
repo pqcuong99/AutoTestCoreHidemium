@@ -85,6 +85,7 @@ window.DetailLog = (() => {
           state: evt.state || (evt.pass ? 'pass' : 'fail'),
           value: evt.value ?? '',
           pass: !!evt.pass,
+          lines: Array.isArray(evt.lines) ? evt.lines : null,
         };
         if (S().current === evt.uuid) draw.table();
         break;
