@@ -43,7 +43,7 @@ window.ProfileSource = (() => {
       if (!res.ok) break;
       lastPage = Math.max(1, res.meta?.lastPage || 1);
       for (const r of res.rows || []) {
-        if (wantedSet.has(r.uuid)) found.set(r.uuid, { uuid: r.uuid, name: r.name });
+        if (wantedSet.has(r.uuid)) found.set(r.uuid, { uuid: r.uuid, name: r.name, os: r.os || '' });
       }
       if (found.size === wantedSet.size) break;
       page++;
@@ -95,13 +95,16 @@ window.ProfileSource = (() => {
     State.statusText = {};
 
     res.rows.forEach((r) => {
-      if (State.selected.has(r.uuid)) State.selected.set(r.uuid, { uuid: r.uuid, name: r.name });
+      if (State.selected.has(r.uuid)) {
+        State.selected.set(r.uuid, { uuid: r.uuid, name: r.name, os: r.os || '' });
+      }
     });
 
     let pruned = 0;
     if (pruneSelection && State.selected.size) {
       pruned = await pruneMissingSelections(State.source);
     }
+    Table.pruneSelectionByTargetOs?.();
 
     setLoading(false);
     setTabs(State.source);

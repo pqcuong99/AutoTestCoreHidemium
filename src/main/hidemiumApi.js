@@ -3,6 +3,7 @@
  */
 const http = require('http');
 const { t } = require('../shared/i18n');
+const { pickOsFromBrowser } = require('../shared/profileOs');
 
 const DEFAULT_BASE = 'http://127.0.0.1:2222';
 const DEFAULT_TIMEOUT = 120000;
@@ -113,9 +114,13 @@ async function listBrowsers({
     const content = body.data && Array.isArray(body.data.content) ? body.data.content : null;
     if (!content) return { ok: false, error: 'Response thieu data.content' };
 
-    // Chi giu lai truong can dung cho bang + runner.
+    // Chi giu lai truong can dung cho bang + runner (+ os de loc theo targetOs).
     const rows = content
-      .map((b) => ({ uuid: String(b.uuid || '').trim(), name: String(b.name || '').trim() }))
+      .map((b) => ({
+        uuid: String(b.uuid || '').trim(),
+        name: String(b.name || '').trim(),
+        os: pickOsFromBrowser(b),
+      }))
       .filter((r) => r.uuid !== '');
 
     const m = body.meta || {};

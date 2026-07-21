@@ -3,14 +3,25 @@
  *
  * Dung: resolve(store.targetOs) → policy { id, supported, skipChecks, skipConfigKeys, matchAliases }
  * Them OS: tao file <os>.js + dang ky trong POLICIES.
+ *
+ * targetOs=all → khong loc list profile; policy skip rong.
  */
+const all = require('./all');
 const windows = require('./windows');
 const macos = require('./macos');
 const ios = require('./ios');
 const android = require('./android');
+const {
+  normalizeOsId,
+  normalizeProfileOs,
+  profileMatchesTargetOs,
+  osFromConfigMap,
+  pickOsFromBrowser,
+} = require('../profileOs');
 
 /** @type {Record<string, object>} */
 const POLICIES = {
+  all,
   windows,
   win: windows,
   win32: windows,
@@ -24,6 +35,7 @@ const POLICIES = {
 };
 
 const OS_OPTIONS = [
+  { id: 'all', labelKey: 'os.all', supported: true },
   { id: 'windows', labelKey: 'os.windows', supported: true },
   { id: 'macos', labelKey: 'os.macos', supported: false },
   { id: 'ios', labelKey: 'os.ios', supported: false },
@@ -33,14 +45,9 @@ const OS_OPTIONS = [
 const DEFAULT_OS = 'windows';
 
 function normalizeOs(id) {
-  const raw = String(id || '')
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, '');
+  const raw = normalizeOsId(id);
   if (!raw) return DEFAULT_OS;
-  if (POLICIES[raw]) {
-    return POLICIES[raw].id;
-  }
+  if (POLICIES[raw]) return POLICIES[raw].id;
   return DEFAULT_OS;
 }
 
@@ -79,6 +86,10 @@ module.exports = {
   OS_OPTIONS,
   POLICIES,
   normalizeOs,
+  normalizeProfileOs,
+  profileMatchesTargetOs,
+  osFromConfigMap,
+  pickOsFromBrowser,
   resolve,
   isSupported,
 };

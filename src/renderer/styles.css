@@ -12,9 +12,72 @@
   --ok: #16a34a;
   --warn: #d97706;
   --topbar-h: 58px;
+  /* Scrollbar dung chung (bang / settings / log / detail log) */
+  --scroll-size: 10px;
+  --scroll-track: #0f172a;
+  --scroll-thumb: #475569;
+  --scroll-thumb-hover: #64748b;
 }
 
 * { box-sizing: border-box; }
+
+/* ---------- Scrollbar dong bo ---------- */
+.table-wrap,
+.settings-body,
+.log,
+.dl-lanes,
+.dl-profiles,
+.dl-table-wrap,
+.dl-tbl tbody tr.dl-row-resized td {
+  overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scroll-thumb) var(--scroll-track);
+  -webkit-overflow-scrolling: touch;
+}
+
+.table-wrap::-webkit-scrollbar,
+.settings-body::-webkit-scrollbar,
+.log::-webkit-scrollbar,
+.dl-lanes::-webkit-scrollbar,
+.dl-profiles::-webkit-scrollbar,
+.dl-table-wrap::-webkit-scrollbar,
+.dl-tbl tbody tr.dl-row-resized td::-webkit-scrollbar {
+  width: var(--scroll-size);
+  height: var(--scroll-size);
+}
+
+.table-wrap::-webkit-scrollbar-track,
+.settings-body::-webkit-scrollbar-track,
+.log::-webkit-scrollbar-track,
+.dl-lanes::-webkit-scrollbar-track,
+.dl-profiles::-webkit-scrollbar-track,
+.dl-table-wrap::-webkit-scrollbar-track,
+.dl-tbl tbody tr.dl-row-resized td::-webkit-scrollbar-track {
+  background: var(--scroll-track);
+  border-radius: 8px;
+}
+
+.table-wrap::-webkit-scrollbar-thumb,
+.settings-body::-webkit-scrollbar-thumb,
+.log::-webkit-scrollbar-thumb,
+.dl-lanes::-webkit-scrollbar-thumb,
+.dl-profiles::-webkit-scrollbar-thumb,
+.dl-table-wrap::-webkit-scrollbar-thumb,
+.dl-tbl tbody tr.dl-row-resized td::-webkit-scrollbar-thumb {
+  background: var(--scroll-thumb);
+  border: 2px solid var(--scroll-track);
+  border-radius: 8px;
+}
+
+.table-wrap::-webkit-scrollbar-thumb:hover,
+.settings-body::-webkit-scrollbar-thumb:hover,
+.log::-webkit-scrollbar-thumb:hover,
+.dl-lanes::-webkit-scrollbar-thumb:hover,
+.dl-profiles::-webkit-scrollbar-thumb:hover,
+.dl-table-wrap::-webkit-scrollbar-thumb:hover,
+.dl-tbl tbody tr.dl-row-resized td::-webkit-scrollbar-thumb:hover {
+  background: var(--scroll-thumb-hover);
+}
 
 body {
   margin: 0;
@@ -145,7 +208,7 @@ body {
 .badge { background: var(--bg); border: 1px solid var(--border); border-radius: 20px; padding: 2px 9px; font-size: 11px; color: var(--muted); }
 
 /* ---------- Table ---------- */
-.table-wrap { flex: 1; overflow: auto; position: relative; }
+.table-wrap { flex: 1; position: relative; min-height: 0; }
 .tbl { width: 100%; border-collapse: collapse; font-size: 12px; }
 .tbl thead th {
   position: sticky; top: 0; z-index: 1; background: var(--panel-2);
@@ -169,7 +232,7 @@ body {
 .st-stopped { background: #3f3f46; color: #d4d4d8; }
 
 /* ---------- Settings ---------- */
-.settings-body { padding: 12px; overflow: auto; }
+.settings-body { padding: 12px; min-height: 0; }
 .field { margin-bottom: 16px; }
 .field > label, .field-head label { display: block; font-size: 11px; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: .5px; }
 .field-head { display: flex; align-items: center; justify-content: space-between; }
@@ -200,7 +263,7 @@ body {
 .progress-bar { height: 100%; width: 0; background: var(--primary); transition: width .2s; }
 .progress-text { font-size: 11px; color: var(--muted); white-space: nowrap; min-width: 160px; text-align: right; }
 .log {
-  height: 108px; overflow: auto; background: var(--bg); border: 1px solid var(--border);
+  height: 108px; background: var(--bg); border: 1px solid var(--border);
   border-radius: 7px; padding: 7px 10px; font-family: Consolas, monospace; font-size: 11px; color: #94a3b8;
 }
 .log .l-err { color: #fca5a5; }

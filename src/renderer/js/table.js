@@ -3,11 +3,37 @@
  */
 window.Table = (() => {
   function visibleRows() {
+    const targetOs =
+      (typeof Settings !== 'undefined' && Settings.getTargetOs && Settings.getTargetOs()) ||
+      'windows';
+    const matchOs = window.ProfileOs
+      ? (r) => window.ProfileOs.profileMatchesTargetOs(r.os, targetOs)
+      : () => true;
+
+    let rows = State.rows.filter(matchOs);
     const q = State.filter.trim().toLowerCase();
-    if (!q) return State.rows;
-    return State.rows.filter(
+    if (!q) return rows;
+    return rows.filter(
       (r) => r.uuid.toLowerCase().includes(q) || (r.name || '').toLowerCase().includes(q)
     );
+  }
+
+  /** Bo tick profile khong khop targetOs (goi khi doi Settings OS). */
+  function pruneSelectionByTargetOs() {
+    const targetOs =
+      (typeof Settings !== 'undefined' && Settings.getTargetOs && Settings.getTargetOs()) ||
+      'windows';
+    if (!window.ProfileOs || targetOs === 'all') return 0;
+    let removed = 0;
+    for (const [uuid, row] of Array.from(State.selected.entries())) {
+      const os = row.os != null ? row.os : State.rows.find((r) => r.uuid === uuid)?.os;
+      if (!window.ProfileOs.profileMatchesTargetOs(os, targetOs)) {
+        State.selected.delete(uuid);
+        removed++;
+      }
+    }
+    if (removed) persistSelection();
+    return removed;
   }
 
   function render() {
@@ -56,7 +82,7 @@ window.Table = (() => {
   }
 
   function toggle(row, on) {
-    if (on) State.selected.set(row.uuid, { uuid: row.uuid, name: row.name });
+    if (on) State.selected.set(row.uuid, { uuid: row.uuid, name: row.name, os: row.os || '' });
     else State.selected.delete(row.uuid);
   }
 
@@ -89,7 +115,16 @@ window.Table = (() => {
   }
 
   function selectedProfiles() {
-    return Array.from(State.selected.values());
+    const targetOs =
+      (typeof Settings !== 'undefined' && Settings.getTargetOs && Settings.getTargetOs()) ||
+      'windows';
+    return Array.from(State.selected.values()).filter((r) => {
+      if (!window.ProfileOs) return true;
+      const os = r.os != null && r.os !== ''
+        ? r.os
+        : State.rows.find((x) => x.uuid === r.uuid)?.os;
+      return window.ProfileOs.profileMatchesTargetOs(os, targetOs);
+    });
   }
 
   function resetStatus() {
@@ -98,5 +133,14 @@ window.Table = (() => {
     render();
   }
 
-  return { init, render, setStatus, selectedProfiles, resetStatus, updateCount, persistSelection };
+  return {
+    init,
+    render,
+    setStatus,
+    selectedProfiles,
+    pruneSelectionByTargetOs,
+    resetStatus,
+    updateCount,
+    persistSelection,
+  };
 })();

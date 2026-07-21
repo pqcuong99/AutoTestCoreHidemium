@@ -14,7 +14,12 @@ const { readProfileConfig } = require('../configReader');
 const { buildConfigColumn } = require('../configMapper');
 const { WEBSITES } = require('../../shared/websites');
 const { t } = require('../../shared/i18n');
-const { resolve: resolvePlatform } = require('../../shared/platformPolicy');
+const {
+  resolve: resolvePlatform,
+  profileMatchesTargetOs,
+  osFromConfigMap,
+  normalizeProfileOs,
+} = require('../../shared/platformPolicy');
 const creepjs = require('./creepjs');
 const browserleaks = require('./browserleaks');
 const browserscan = require('./browserscan');
@@ -54,6 +59,20 @@ async function runProfileCheck(lane, checkKeys, ctx) {
     return { ok: false, status: msg, error: msg, rows: {} };
   }
 
+  // Chi chan khi DA BIET OS tu list va lech target. Thieu os → mo profile roi doc config.
+  if (
+    lane.job?.os &&
+    !profileMatchesTargetOs(lane.job.os, platform.id, { requireKnown: true })
+  ) {
+    const msg = t('check.osMismatch', {
+      profile: lane.job.os,
+      target: platform.id,
+    });
+    step(msg, 'err');
+    emit({ type: 'profile-error', uuid, stage: 'platform', error: msg });
+    return { ok: false, status: msg, error: msg, rows: {} };
+  }
+
   const abortCheck = () => {
     if (signal.aborted) throw new Error('aborted');
   };
@@ -75,6 +94,22 @@ async function runProfileCheck(lane, checkKeys, ctx) {
     return { ok: false, status: t('err.openProfile'), error: opened.error, rows: {} };
   }
 
+  const openedOs = opened.data?.os || opened.data?.OS || opened.data?.platform || '';
+  if (openedOs && !profileMatchesTargetOs(openedOs, platform.id, { requireKnown: true })) {
+    const msg = t('check.osMismatch', {
+      profile: openedOs,
+      target: platform.id,
+    });
+    step(msg, 'err');
+    emit({ type: 'profile-error', uuid, stage: 'platform', error: msg });
+    try {
+      await closeProfile(uuid, { baseUrl: options.apiBase, signal });
+    } catch {
+      /* ignore */
+    }
+    return { ok: false, status: msg, error: msg, rows: {} };
+  }
+
   lane.ctx.openData = opened.data;
   emit({ type: 'profile-opened', uuid, data: opened.data });
   step(t('check.opened', { port: opened.data.remote_port, path: opened.data.profile_path }), 'ok');
@@ -92,6 +127,23 @@ async function runProfileCheck(lane, checkKeys, ctx) {
 
     lane.ctx.configMap = cfg.map;
     step(t('check.decodeOk', { n: Object.keys(cfg.map).length }), 'ok');
+
+    // Doc OS tu config — list API thuong khong co field os.
+    const configOs = osFromConfigMap(cfg.map) || normalizeProfileOs(openedOs);
+    if (configOs) {
+      step(`Profile OS (config): ${configOs}`, 'ok');
+      if (!profileMatchesTargetOs(configOs, platform.id, { requireKnown: true })) {
+        const msg = t('check.osMismatch', {
+          profile: configOs,
+          target: platform.id,
+        });
+        step(msg, 'err');
+        emit({ type: 'profile-error', uuid, stage: 'platform', error: msg });
+        return { ok: false, status: msg, error: msg, rows: {} };
+      }
+    } else if (platform.id !== 'all') {
+      step('Profile OS: chua xac dinh tu list/config — van chay (target=' + platform.id + ')', 'warn');
+    }
 
     // ---------- 3. Cot B ----------
     abortCheck();

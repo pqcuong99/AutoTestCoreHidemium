@@ -36,6 +36,7 @@ window.Settings = (() => {
     if (!sel) return;
     const cur = cfg.targetOs || 'windows';
     const opts = [
+      { id: 'all', label: t('os.all'), supported: true },
       { id: 'windows', label: t('os.windows'), supported: true },
       { id: 'macos', label: t('os.macos'), supported: false },
       { id: 'ios', label: t('os.ios'), supported: false },
@@ -118,6 +119,11 @@ window.Settings = (() => {
       const os = getTargetOs();
       cfg.targetOs = os;
       window.api.config.set({ targetOs: os });
+      if (typeof Table !== 'undefined') {
+        Table.pruneSelectionByTargetOs?.();
+        Table.render();
+        Table.updateCount?.();
+      }
     });
 
     $('#chk-auto-close').addEventListener('change', () => {
