@@ -27,6 +27,7 @@ const { checkBattery, checkNetwork } = require('./systemStatus');
 const { checkFont } = require('./font');
 const { checkWebgl } = require('./webgl');
 const { checkWebglParam } = require('./webglParam');
+const { checkWebgpu } = require('./webgpu');
 
 const SITE = WEBSITES.find((w) => w.key === 'creepjs');
 
@@ -49,6 +50,7 @@ const HANDLERS = {
   font: checkFont,
   webgl: checkWebgl,
   webgl_param: checkWebglParam,
+  webgpu: checkWebgpu,
 };
 
 async function run(checkKeys, ctx) {
