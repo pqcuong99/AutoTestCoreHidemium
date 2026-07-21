@@ -1,13 +1,9 @@
 /**
  * Helper chung cho cac check CreepJS.
  */
-const CREEPJS_URL = 'https://abrahamjuliot.github.io/creepjs/';
+const { CREEPJS_URLS } = require('./urls');
+const CREEPJS_URL = CREEPJS_URLS.main;
 const LOAD_TIMEOUT_MS = 90000;
-
-/** Playwright: options phai la arg thu 3, khong phai arg thu 2. */
-function waitForPageFunction(page, pageFunction, timeout = LOAD_TIMEOUT_MS) {
-  return page.waitForFunction(pageFunction, undefined, { timeout, polling: 500 });
-}
 
 /**
  * CreepJS da render du lieu doc duoc (Fingerprint hoac DOM fallback).
@@ -44,31 +40,12 @@ function creepjsReadyPredicate() {
   return screenOk || navOk;
 }
 
-async function waitCreepjsReady(page, timeout = LOAD_TIMEOUT_MS) {
-  return waitForPageFunction(page, creepjsReadyPredicate, timeout);
-}
-
 async function isCreepjsReady(page) {
   try {
     return await page.evaluate(creepjsReadyPredicate);
   } catch {
     return false;
   }
-}
-
-function sleep(ms, signal) {
-  return new Promise((resolve, reject) => {
-    if (signal?.aborted) return reject(new Error('aborted'));
-    const timer = setTimeout(() => {
-      signal?.removeEventListener('abort', onAbort);
-      resolve();
-    }, ms);
-    function onAbort() {
-      clearTimeout(timer);
-      reject(new Error('aborted'));
-    }
-    signal?.addEventListener('abort', onAbort, { once: true });
-  });
 }
 
 function cfgStr(map, key) {
@@ -224,10 +201,7 @@ module.exports = {
   CREEPJS_URL,
   LOAD_TIMEOUT_MS,
   creepjsReadyPredicate,
-  waitCreepjsReady,
   isCreepjsReady,
-  waitForPageFunction,
-  sleep,
   cfgStr,
   isDefault,
   eqStr,

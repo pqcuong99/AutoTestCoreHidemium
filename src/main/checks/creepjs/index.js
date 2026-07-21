@@ -24,6 +24,8 @@ const {
   checkFormFactors,
 } = require('./extraUserAgentData');
 const { checkBattery, checkNetwork } = require('./systemStatus');
+const { checkFont } = require('./font');
+const { checkWebgl } = require('./webgl');
 
 const SITE = WEBSITES.find((w) => w.key === 'creepjs');
 
@@ -43,6 +45,8 @@ const HANDLERS = {
   form_factors: checkFormFactors,
   battery: checkBattery,
   network: checkNetwork,
+  font: checkFont,
+  webgl: checkWebgl,
 };
 
 async function run(checkKeys, ctx) {
