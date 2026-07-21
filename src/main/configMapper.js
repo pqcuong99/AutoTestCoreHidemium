@@ -90,6 +90,8 @@ const MAPPING = {
   webgl: {
     fields: [
       { key: 'hidemium.webgl.mode', label: 'mode' },
+      { key: 'hidemium.webgl.report_hash', label: 'reportHash' },
+      { key: 'hidemium.webgl.image_hash', label: 'imageHash' },
       { key: 'hidemium.webgl.vendor', label: 'vendor' },
       { key: 'hidemium.webgl.renderer', label: 'renderer', base64: true },
     ],

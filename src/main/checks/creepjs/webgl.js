@@ -1,7 +1,7 @@
 /**
  * CreepJS — WebGL hash + vendor + renderer.
  */
-const { cfgStr, isDefault, eqStr, finishCheck } = require('./helpers');
+const { cfgStr, isDefault, lineResult, infoLine, finishCheck } = require('./helpers');
 
 const CFG = {
   mode: 'hidemium.webgl.mode',
@@ -68,36 +68,17 @@ function decodeExpectedRenderer(value) {
   return value;
 }
 
-function comparedLine(label, actual, expected) {
-  const pass =
-    isDefault(expected) || actual == null || actual === ''
-      ? null
-      : eqStr(actual, expected);
-  return {
-    label,
-    value: actual == null ? '' : actual,
-    expected: isDefault(expected) ? 'default' : expected,
-    pass,
-    needle: actual,
-  };
-}
-
 async function checkWebgl(page, configMap, ctx) {
   ctx.step('CreepJS WebGL: select hash/vendor/renderer...');
   const scraped = await page.evaluate(scrapeWebglInPage);
 
   const expectedVendor = cfgStr(configMap, CFG.vendor);
   const expectedRenderer = decodeExpectedRenderer(cfgStr(configMap, CFG.renderer));
+  // hash: web-only (mode=noise) — info, khong so config
   const lines = [
-    {
-      label: 'hash',
-      value: scraped.hash || '',
-      expected: cfgStr(configMap, CFG.mode) || 'default',
-      pass: null, // mode=noise duoc thay bang hash, khong boi do
-      needle: scraped.hash,
-    },
-    comparedLine('vendor', scraped.vendor, expectedVendor),
-    comparedLine('renderer', scraped.renderer, expectedRenderer),
+    infoLine('hash', scraped.hash || '', scraped.hash),
+    lineResult('vendor', scraped.vendor, expectedVendor, scraped.vendor),
+    lineResult('renderer', scraped.renderer, expectedRenderer, scraped.renderer),
   ];
 
   ctx.step(

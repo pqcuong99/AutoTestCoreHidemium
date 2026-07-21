@@ -1,6 +1,7 @@
 /**
  * CHE DO TEST LUONG.
  *
+ * Chi kiem tra profile mo/dong + lane chay duoc — khong doc config, khong scrape site.
  * Moi profile: mo -> doi N giay -> dong.
  */
 const { openProfile, closeProfile } = require('../hidemiumApi');
@@ -36,7 +37,11 @@ async function runProfileCheck(lane, _checkKeys, ctx) {
   const t0 = Date.now();
   step(t('check.testOpening', { laneId: lane.id, name: name || uuid }));
 
-  const opened = await openProfile(uuid, { baseUrl: options.apiBase, signal });
+  const opened = await openProfile(uuid, {
+    baseUrl: options.apiBase,
+    signal,
+    restoreSession: options.disableRestoreSession === false,
+  });
   lane.assertOwns(uuid);
 
   if (!opened.ok) {

@@ -5,7 +5,8 @@
   "main": "src/main/main.js",
   "scripts": {
     "start": "electron .",
-    "dev": "electron . --dev"
+    "dev": "electron . --dev",
+    "recipes:config": "node src/main/checks/browserleaks/recipes-config-server.js"
   },
   "author": "",
   "license": "MIT",

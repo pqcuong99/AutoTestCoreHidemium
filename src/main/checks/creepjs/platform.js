@@ -3,10 +3,10 @@
  */
 const {
   cfgStr,
-  isDefault,
-  eqStr,
+  lineResult,
   highlightMarksInPage,
   summarizeLines,
+  toFieldResult,
 } = require('./helpers');
 const { scrapeNavigatorDataInPage } = require('./scrapeNavigator');
 
@@ -17,20 +17,6 @@ const CFG = {
 
 async function waitAndScrape(page) {
   return page.evaluate(scrapeNavigatorDataInPage);
-}
-
-function lineResult(label, actual, expected, needle) {
-  let pass = null;
-  if (!isDefault(expected) && actual != null && actual !== '') {
-    pass = eqStr(actual, expected);
-  }
-  return {
-    label,
-    value: actual == null || actual === '' ? '' : String(actual),
-    expected: isDefault(expected) ? 'default' : expected,
-    pass,
-    needle: needle || (actual ? String(actual) : null),
-  };
 }
 
 async function checkPlatformNavigator(page, configMap, ctx) {
@@ -47,11 +33,19 @@ async function checkPlatformNavigator(page, configMap, ctx) {
   );
 
   if (!scraped.navigatorPlatform) {
-    return { state: 'fail', value: 'Khong doc duoc navigator.platform', pass: false, lines: [line] };
+    const field = toFieldResult(line);
+    return {
+      state: 'fail',
+      value: 'Khong doc duoc navigator.platform',
+      pass: false,
+      lines: summarizeLines([field]).lines,
+    };
   }
 
   const result = summarizeLines([line]);
-  await page.evaluate(highlightMarksInPage, [{ needle: line.needle, pass: line.pass }]);
+  await page.evaluate(highlightMarksInPage, [
+    { needle: line.needle, pass: line.infoOnly ? null : line.pass },
+  ]);
   return result;
 }
 
@@ -59,7 +53,9 @@ async function checkPlatformUa(page, configMap, ctx) {
   const { step } = ctx;
   step('CreepJS Platform (UA): select userAgent...');
   const scraped = await waitAndScrape(page);
-  step(`CreepJS Platform (UA): ${scraped.uaPlatform ?? 'null'} (needle: ${scraped.uaPlatformNeedle ?? 'null'})`);
+  step(
+    `CreepJS Platform (UA): ${scraped.uaPlatform ?? 'null'} (needle: ${scraped.uaPlatformNeedle ?? 'null'})`
+  );
 
   const line = lineResult(
     'platform',
@@ -69,11 +65,19 @@ async function checkPlatformUa(page, configMap, ctx) {
   );
 
   if (!scraped.uaPlatform) {
-    return { state: 'fail', value: 'Khong doc duoc platform (UA)', pass: false, lines: [line] };
+    const field = toFieldResult(line);
+    return {
+      state: 'fail',
+      value: 'Khong doc duoc platform (UA)',
+      pass: false,
+      lines: summarizeLines([field]).lines,
+    };
   }
 
   const result = summarizeLines([line]);
-  await page.evaluate(highlightMarksInPage, [{ needle: line.needle, pass: line.pass }]);
+  await page.evaluate(highlightMarksInPage, [
+    { needle: line.needle, pass: line.infoOnly ? null : line.pass },
+  ]);
   return result;
 }
 
