@@ -479,7 +479,13 @@ async function run(checkKeys, ctx) {
       ? platform.skipChecks
       : SKIP_CHECKS || new Set();
 
-  step(`BrowserLeaks: targetOs=${platform.id} (policy ${platform.supported ? 'ok' : 'unsupported'})`, 'ok');
+  const policyTag = platform.browser
+    ? `${platform.id}/${platform.browser}`
+    : platform.id;
+  step(
+    `BrowserLeaks: targetOs=${policyTag} (policy ${platform.supported ? 'ok' : 'unsupported'})`,
+    'ok'
+  );
 
   const results = {};
   for (const key of checkKeys) {
@@ -491,7 +497,7 @@ async function run(checkKeys, ctx) {
     if (skipChecks.has(key)) {
       results[key] = {
         state: 'skipped',
-        value: `skipped (${platform.id} policy)`,
+        value: `skipped (${policyTag} policy)`,
         pass: false,
       };
     }

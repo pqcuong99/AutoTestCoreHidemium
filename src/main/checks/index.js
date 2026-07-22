@@ -19,7 +19,40 @@ const {
   profileMatchesTargetOs,
   osFromConfigMap,
   normalizeProfileOs,
+  normalizeBrowserId,
 } = require('../../shared/platformPolicy');
+const {
+  pickBrowserFromBrowser,
+  pickBrowserVersion,
+  formatBrowserLabel,
+  browserFromConfigMap,
+} = require('../../shared/profileOs');
+
+/** Danh dau check bi skip theo OS/browser policy cho 1 site. */
+function applyPolicySkips(lane, checkKeys, platform, siteKey, emit, uuid) {
+  const tag = platform.browser
+    ? `${platform.id}/${platform.browser}`
+    : platform.id;
+  for (const key of checkKeys) {
+    if (!platform.skipChecks?.has(key)) continue;
+    if (!lane.ctx.rows[key]) continue;
+    const r = {
+      state: 'skipped',
+      value: `skipped (${tag} policy)`,
+      pass: false,
+    };
+    lane.ctx.rows[key].sites[siteKey] = r;
+    emit?.({
+      type: 'site-result',
+      uuid,
+      checkKey: key,
+      siteKey,
+      value: r.value,
+      pass: false,
+      state: 'skipped',
+    });
+  }
+}
 const creepjs = require('./creepjs');
 const browserleaks = require('./browserleaks');
 const browserscan = require('./browserscan');
@@ -46,7 +79,7 @@ async function runProfileCheck(lane, checkKeys, ctx) {
   const { uuid, name } = lane.job;
   const { signal, emit, options } = ctx;
   const step = (message, kind) => emit({ type: 'log', uuid, message, kind });
-  const platform = resolvePlatform(options?.targetOs);
+  let platform = resolvePlatform(options?.targetOs);
   step(t('check.targetOs', { os: platform.label || platform.id }), 'ok');
 
   if (!platform.supported) {
@@ -128,8 +161,27 @@ async function runProfileCheck(lane, checkKeys, ctx) {
     lane.ctx.configMap = cfg.map;
     step(t('check.decodeOk', { n: Object.keys(cfg.map).length }), 'ok');
 
-    // Doc OS tu config — list API thuong khong co field os.
+    // Doc OS / browser tu config — list API thuong thieu field.
     const configOs = osFromConfigMap(cfg.map) || normalizeProfileOs(openedOs);
+    const listBrowser = formatBrowserLabel(
+      pickBrowserFromBrowser(opened.data) || pickBrowserFromBrowser(lane.job) || lane.job?.browser,
+      pickBrowserVersion(opened.data) || pickBrowserVersion(lane.job)
+    );
+    const browserLabel = listBrowser || browserFromConfigMap(cfg.map);
+    const browserId =
+      normalizeBrowserId(listBrowser) ||
+      normalizeBrowserId(browserLabel) ||
+      normalizeBrowserId(lane.job?.browser);
+
+    // Gom policy OS + browsers[browserId] (vd mac/safari → skip webgpu).
+    platform = resolvePlatform(options?.targetOs, browserId);
+    emit({
+      type: 'profile-meta',
+      uuid,
+      os: configOs || openedOs || '',
+      browser: browserLabel,
+      name: opened.data?.profile_name || name,
+    });
     if (configOs) {
       step(`Profile OS (config): ${configOs}`, 'ok');
       if (!profileMatchesTargetOs(configOs, platform.id, { requireKnown: true })) {
@@ -144,6 +196,15 @@ async function runProfileCheck(lane, checkKeys, ctx) {
     } else if (platform.id !== 'all') {
       step('Profile OS: chua xac dinh tu list/config — van chay (target=' + platform.id + ')', 'warn');
     }
+    if (browserLabel) step(`Profile browser: ${browserLabel}`, 'ok');
+    if (platform.browser) {
+      step(`Policy: ${platform.label}/${platform.browser}`, 'ok');
+      if (platform.skipChecks.size) {
+        step(`Policy skipChecks: ${[...platform.skipChecks].join(', ')}`, 'ok');
+      }
+    }
+
+    const runKeys = checkKeys.filter((k) => !platform.skipChecks.has(k));
 
     // ---------- 3. Cot B ----------
     abortCheck();
@@ -170,9 +231,11 @@ async function runProfileCheck(lane, checkKeys, ctx) {
       abortCheck();
       lane.assertOwns(uuid);
 
+      applyPolicySkips(lane, checkKeys, platform, w.key, emit, uuid);
+
       const runner = SITE_RUNNERS[w.key];
       if (runner?.run) {
-        const siteResults = await runner.run(checkKeys, {
+        const siteResults = await runner.run(runKeys, {
           openData: lane.ctx.openData,
           configMap: lane.ctx.configMap,
           signal,
@@ -185,7 +248,7 @@ async function runProfileCheck(lane, checkKeys, ctx) {
         });
         lane.assertOwns(uuid);
 
-        for (const key of checkKeys) {
+        for (const key of runKeys) {
           const r = siteResults[key] || { state: 'skipped', value: '-' };
           lane.ctx.rows[key].sites[w.key] = r;
           emit({
@@ -207,12 +270,12 @@ async function runProfileCheck(lane, checkKeys, ctx) {
       if (site?.scrape && site?.apply) {
         const res = await site.scrape({
           openData: lane.ctx.openData,
-          checkKeys,
+          checkKeys: runKeys,
           signal,
           log: step,
         });
         lane.assertOwns(uuid);
-        site.apply(lane, checkKeys, res, emit, uuid);
+        site.apply(lane, runKeys, res, emit, uuid);
         emit({
           type: 'detail-rows',
           uuid,
@@ -226,7 +289,7 @@ async function runProfileCheck(lane, checkKeys, ctx) {
         continue;
       }
 
-      for (const key of checkKeys) {
+      for (const key of runKeys) {
         const r = { state: 'skipped', value: '-', pass: false };
         lane.ctx.rows[key].sites[w.key] = r;
         emit({

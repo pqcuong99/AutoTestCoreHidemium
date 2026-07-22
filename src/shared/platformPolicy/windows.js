@@ -1,6 +1,11 @@
 /**
  * Policy test theo OS target (windows | macos | linux | ios | android).
  * Recipes DOM dung chung; chi khac skipChecks / skipConfigKeys / matchAliases.
+ *
+ * Them theo browser (tuy chon):
+ *   browsers: {
+ *     safari: { skipChecks: ['webgpu'] },
+ *   }
  */
 module.exports = {
   id: 'windows',
@@ -16,4 +21,5 @@ module.exports = {
   ],
   /** Alias soft-match platform string (mo rong sau). */
   matchAliases: {},
+  browsers: {},
 };

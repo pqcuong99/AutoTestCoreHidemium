@@ -63,6 +63,7 @@ const I18N_VI = {
   'detail.empty': 'Chưa có dữ liệu. Tick profile rồi bấm Chạy.',
   'detail.emptyTest': 'Chế độ "Test luồng" không check mục nào — xem log bên dưới.',
   'detail.logHead': 'Log của profile này',
+  'detail.logResize': 'Kéo để đổi chiều cao log',
   'detail.colCheck': 'Mục Check',
   'detail.colConfig': 'Config (config.hidemium)',
   'detail.idle': 'trống',

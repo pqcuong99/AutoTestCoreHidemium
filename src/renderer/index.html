@@ -219,8 +219,18 @@
             <div id="dl-empty" class="empty" data-i18n="detail.empty">Chưa có dữ liệu. Tick profile rồi bấm Chạy.</div>
           </div>
 
-          <div class="dl-log-head" data-i18n="detail.logHead">Log của profile này</div>
-          <div id="dl-log" class="log dl-log"></div>
+          <div
+            class="dl-log-split"
+            id="dl-log-split"
+            role="separator"
+            aria-orientation="horizontal"
+            data-i18n-title="detail.logResize"
+            title="Kéo để đổi chiều cao log"
+          ></div>
+          <div class="dl-log-panel" id="dl-log-panel">
+            <div class="dl-log-head" data-i18n="detail.logHead">Log của profile này</div>
+            <div id="dl-log" class="log dl-log"></div>
+          </div>
         </main>
       </div>
 
