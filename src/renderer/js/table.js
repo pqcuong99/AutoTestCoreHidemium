@@ -45,11 +45,24 @@ window.Table = (() => {
         const st = State.status[r.uuid] || 'idle';
         const stText = State.statusText[r.uuid] || I18n.statusLabel(st);
         const checked = State.selected.has(r.uuid) ? 'checked' : '';
+        const iconHtml =
+          window.ProfileIcons && ProfileIcons.buildStackHtml
+            ? ProfileIcons.buildStackHtml({
+                browser: r.browser || '',
+                os: r.os || '',
+                coreVersion: r.coreVersion || '',
+              })
+            : '';
         return `<tr data-uuid="${escapeHtml(r.uuid)}">
           <td class="col-chk"><input type="checkbox" class="row-chk" ${checked} /></td>
           <td class="col-no">${i + 1}</td>
           <td class="uuid">${escapeHtml(r.uuid)}</td>
-          <td>${escapeHtml(r.name || '-')}</td>
+          <td class="col-name">
+            <div class="profile-name-cell">
+              ${iconHtml}
+              <span class="profile-name-text">${escapeHtml(r.name || '-')}</span>
+            </div>
+          </td>
           <td class="col-status"><span class="st st-${st}" title="${escapeHtml(stText)}">${escapeHtml(stText)}</span></td>
         </tr>`;
       })
@@ -82,8 +95,15 @@ window.Table = (() => {
   }
 
   function toggle(row, on) {
-    if (on) State.selected.set(row.uuid, { uuid: row.uuid, name: row.name, os: row.os || '' });
-    else State.selected.delete(row.uuid);
+    if (on) {
+      State.selected.set(row.uuid, {
+        uuid: row.uuid,
+        name: row.name,
+        os: row.os || '',
+        browser: row.browser || '',
+        coreVersion: row.coreVersion || '',
+      });
+    } else State.selected.delete(row.uuid);
   }
 
   function init() {
