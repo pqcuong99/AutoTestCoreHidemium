@@ -105,13 +105,16 @@ body.dl-win-resizing * { user-select: none !important; }
 .dl-profiles { flex: 1; min-height: 0; }
 
 .lane-item, .prof-item {
-  padding: 7px 12px; border-bottom: 1px solid #24324a; cursor: pointer; font-size: 12px;
+  padding: 7px 12px; border-bottom: 1px solid var(--row-border); cursor: pointer; font-size: 12px;
+  color: var(--text);
 }
-.lane-item:hover, .prof-item:hover { background: #223049; }
-.prof-item.active, .lane-item.active { background: #1e3a8a; }
+.lane-item:hover, .prof-item:hover { background: var(--row-hover); }
+.prof-item.active, .lane-item.active { background: #1e3a8a; color: #e2e8f0; }
+.prof-item.active .prof-uuid,
+.lane-item.active .cell-missing { color: #93c5fd; }
 .lane-id {
   display: inline-block; min-width: 22px; text-align: center; background: var(--panel);
-  border-radius: 5px; padding: 1px 5px; font-size: 10px; margin-right: 7px; color: #93c5fd;
+  border-radius: 5px; padding: 1px 5px; font-size: 10px; margin-right: 7px; color: var(--primary);
 }
 .prof-name { display: block; }
 .prof-meta {
@@ -125,8 +128,15 @@ body.dl-win-resizing * { user-select: none !important; }
 }
 .prof-tag-os { color: #93c5fd; border-color: #1e3a8a; }
 .prof-tag-browser { color: #86efac; border-color: #166534; }
-.prof-uuid { display: block; font-family: Consolas, monospace; font-size: 10px; color: #64748b; }
+.prof-uuid { display: block; font-family: Consolas, monospace; font-size: 10px; color: var(--muted); }
 .prof-item .st { float: right; }
+[data-theme="light"] .prof-item.active,
+[data-theme="light"] .lane-item.active {
+  background: #dbeafe;
+  color: var(--text);
+}
+[data-theme="light"] .prof-item.active .prof-uuid,
+[data-theme="light"] .lane-item.active .cell-missing { color: #1d4ed8; }
 
 /* ---------- Bang chi tiet ---------- */
 .dl-main { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
@@ -149,7 +159,7 @@ body.dl-win-resizing * { user-select: none !important; }
   font-size: 11px;
   color: var(--muted);
 }
-.dl-legend-label { font-weight: 600; color: #94a3b8; margin-right: 2px; }
+.dl-legend-label { font-weight: 600; color: var(--muted); margin-right: 2px; }
 .dl-legend-item {
   display: inline-flex;
   align-items: center;
@@ -187,7 +197,7 @@ body.dl-win-resizing * { user-select: none !important; }
 }
 .dl-tbl thead th {
   position: sticky; top: 0; z-index: 2; background: var(--panel-2);
-  text-align: left; padding: 8px 10px; font-weight: 600; color: #cbd5e1;
+  text-align: left; padding: 8px 10px; font-weight: 600; color: var(--text);
   border-bottom: 1px solid var(--border); border-right: 1px solid var(--border);
   overflow: hidden;
 }
@@ -195,10 +205,11 @@ body.dl-win-resizing * { user-select: none !important; }
 .dl-tbl th.col-b { width: 300px; min-width: 300px; }
 .dl-tbl th.col-site { width: 145px; min-width: 145px; }
 .dl-tbl td {
-  padding: 7px 10px; border-bottom: 1px solid #24324a; border-right: 1px solid #24324a;
+  padding: 7px 10px; border-bottom: 1px solid var(--row-border); border-right: 1px solid var(--row-border);
   vertical-align: top; word-break: break-word;
+  color: var(--text);
 }
-.dl-tbl tbody tr:hover { background: #1c2942; }
+.dl-tbl tbody tr:hover { background: var(--row-hover); }
 .dl-tbl td.cell-a { position: relative; }
 
 /* ---------- Resize cot / hang ---------- */
@@ -233,8 +244,8 @@ body.dl-resizing-col * { cursor: col-resize !important; user-select: none !impor
 body.dl-resizing-row,
 body.dl-resizing-row * { cursor: row-resize !important; user-select: none !important; }
 
-.cell-a { font-weight: 600; color: #e2e8f0; }
-.cell-a small { display: block; font-weight: 400; color: #64748b; font-size: 10px; }
+.cell-a { font-weight: 600; color: var(--text); }
+.cell-a small { display: block; font-weight: 400; color: var(--muted); font-size: 10px; }
 
 .kv {
   display: flex;
@@ -246,14 +257,14 @@ body.dl-resizing-row * { cursor: row-resize !important; user-select: none !impor
   min-width: 0;
 }
 .kv-k {
-  color: #64748b;
+  color: var(--muted);
   flex: 0 0 auto;
   white-space: nowrap;
   max-width: none;
   overflow: visible;
 }
 .kv-v {
-  color: #e2e8f0;
+  color: var(--text);
   font-family: Consolas, monospace;
   font-size: 11px;
   flex: 1 1 auto;
@@ -262,7 +273,8 @@ body.dl-resizing-row * { cursor: row-resize !important; user-select: none !impor
   overflow-wrap: anywhere;
 }
 .kv-more { color: #60a5fa; cursor: pointer; font-size: 11px; }
-.cell-missing { color: #64748b; font-style: italic; }
+[data-theme="light"] .kv-more { color: #2563eb; }
+.cell-missing { color: var(--muted); font-style: italic; }
 
 .site-cell {
   display: flex;
@@ -279,13 +291,15 @@ body.dl-resizing-row * { cursor: row-resize !important; user-select: none !impor
   white-space: pre-wrap;
   word-break: break-word;
 }
-.site-pending { color: #94a3b8; }
-.site-skipped { color: #64748b; }
+.site-pending { color: var(--muted); }
+.site-skipped { color: var(--muted); }
 .site-pass { color: #86efac; }
 .site-fail { color: #fca5a5; }
+[data-theme="light"] .site-pass { color: #15803d; }
+[data-theme="light"] .site-fail { color: #b91c1c; }
 
 /* Highlight tung dong key (SiteHighlight) — uu tien hon mau ca o */
-.site-cell .kv-ok .kv-v { color: #cbd5e1; }
+.site-cell .kv-ok .kv-v { color: var(--text); }
 .site-cell .kv-mismatch {
   background: rgba(220, 38, 38, 0.18);
   border-radius: 4px;
@@ -307,7 +321,23 @@ body.dl-resizing-row * { cursor: row-resize !important; user-select: none !impor
 }
 .site-cell .kv-missing-web .kv-k,
 .site-cell .kv-missing-web .kv-v { color: #e9d5ff; }
-.site-cell .kv-info .kv-v { color: #94a3b8; }
+.site-cell .kv-info .kv-v { color: var(--muted); }
+
+[data-theme="light"] .site-cell .kv-mismatch {
+  background: rgba(220, 38, 38, 0.12);
+}
+[data-theme="light"] .site-cell .kv-mismatch .kv-k,
+[data-theme="light"] .site-cell .kv-mismatch .kv-v { color: #b91c1c; }
+[data-theme="light"] .site-cell .kv-no-config {
+  background: rgba(217, 119, 6, 0.14);
+}
+[data-theme="light"] .site-cell .kv-no-config .kv-k,
+[data-theme="light"] .site-cell .kv-no-config .kv-v { color: #b45309; }
+[data-theme="light"] .site-cell .kv-missing-web {
+  background: rgba(147, 51, 234, 0.12);
+}
+[data-theme="light"] .site-cell .kv-missing-web .kv-k,
+[data-theme="light"] .site-cell .kv-missing-web .kv-v { color: #6b21a8; }
 
 .dl-log-split {
   flex: none;

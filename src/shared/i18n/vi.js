@@ -5,6 +5,8 @@
 const I18N_VI = {
   'app.subtitle': 'Chọn Cloud/Local → tick profile → chạy check',
   'btn.run': 'Chạy',
+  'btn.settings': 'Cài đặt',
+  'btn.settings.title': 'Theme và ngôn ngữ',
   'btn.testLane': 'Test luồng',
   'btn.testLane.title': 'Test luồng: mở profile → đợi → đóng',
   'btn.detailLog': 'Detail Log',
@@ -12,6 +14,9 @@ const I18N_VI = {
   'btn.stop': 'Dừng',
   'btn.stop.title': 'Dừng chạy / đóng profile đang mở',
   'btn.reload.title': 'Tải lại danh sách',
+  'settings.theme': 'Theme',
+  'theme.dark': 'Tối',
+  'theme.light': 'Sáng',
   'tab.cloud': 'Cloud',
   'tab.cloud.title': 'Profile trên Cloud (is_local=false)',
   'tab.local': 'Local',

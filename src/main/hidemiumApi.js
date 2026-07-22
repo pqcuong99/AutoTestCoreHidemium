@@ -13,6 +13,27 @@ const {
 const DEFAULT_BASE = 'http://127.0.0.1:2222';
 const DEFAULT_TIMEOUT = 120000;
 
+/** Trich ten browser tu object list API (string hoac nested). */
+function pickBrowserFromBrowser(b) {
+  if (!b || typeof b !== 'object') return '';
+  const candidates = [];
+  // Uu tien field browser thuan (chrome / chromium / edge / ...)
+  if (typeof b.browser === 'string') candidates.push(b.browser);
+  else if (b.browser && typeof b.browser === 'object') {
+    candidates.push(b.browser.name, b.browser.type, b.browser.browser, b.browser.key);
+  }
+  candidates.push(b.browser_name, b.browserName);
+
+  for (const c of candidates) {
+    const s = String(c == null ? '' : c).trim();
+    // Bo browser_type kieu hidemium_v2 — khong dung de chon logo
+    if (!s || s === '[object Object]') continue;
+    if (/^hidemium/i.test(s)) continue;
+    return s;
+  }
+  return '';
+}
+
 function attachAbort(req, signal) {
   if (!signal) return;
   if (signal.aborted) {
@@ -119,7 +140,7 @@ async function listBrowsers({
     const content = body.data && Array.isArray(body.data.content) ? body.data.content : null;
     if (!content) return { ok: false, error: 'Response thieu data.content' };
 
-    // Chi giu lai truong can dung cho bang + runner (+ os/browser de hien Detail Log).
+    // Chi giu lai truong can dung cho bang + runner (+ os/browser/core de hien logo).
     const rows = content
       .map((b) => {
         const browserName = pickBrowserFromBrowser(b);
@@ -129,6 +150,9 @@ async function listBrowsers({
           name: String(b.name || '').trim(),
           os: pickOsFromBrowser(b),
           browser: formatBrowserLabel(browserName, browserVer),
+          coreVersion: String(
+            b.source_version || b.sourceVersion || b.core_version || b.coreVersion || ''
+          ).trim(),
         };
       })
       .filter((r) => r.uuid !== '');

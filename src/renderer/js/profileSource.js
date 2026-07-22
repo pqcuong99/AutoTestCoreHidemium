@@ -49,6 +49,7 @@ window.ProfileSource = (() => {
             name: r.name,
             os: r.os || '',
             browser: r.browser || '',
+            coreVersion: r.coreVersion || '',
           });
         }
       }
@@ -108,6 +109,7 @@ window.ProfileSource = (() => {
           name: r.name,
           os: r.os || '',
           browser: r.browser || '',
+          coreVersion: r.coreVersion || '',
         });
       }
     });

@@ -6,6 +6,7 @@ const CFG = {
 };
 const FONT_CONTAINER_SELECTOR = '#fonts_anchor';
 const FONT_HASH_XPATH = '//*[@id="fonts_anchor"]/div[2]/div/p';
+const LOAD_TIMEOUT_MS = 90000;
 
 function cfgStr(map, key) {
   if (!(key in map) || map[key] == null || map[key] === '') return null;
@@ -97,7 +98,17 @@ async function readFontHashViaCdp(page) {
 
 async function checkFont(page, configMap, ctx) {
   ctx.step(`BrowserScan Font: tim hash trong ${FONT_CONTAINER_SELECTOR}`);
-  const actual = await readFontHashViaCdp(page);
+  let actual = await readFontHashViaCdp(page);
+  if (!actual) {
+    if (ctx.signal?.aborted) throw new Error('aborted');
+    ctx.step('BrowserScan Font: khong thay font (co the do quang cao) — reload 1 lan', 'warn');
+    await page.reload({
+      waitUntil: 'domcontentloaded',
+      timeout: LOAD_TIMEOUT_MS,
+    });
+    if (ctx.signal?.aborted) throw new Error('aborted');
+    actual = await readFontHashViaCdp(page);
+  }
   const expected = cfgStr(configMap, CFG.fontsValue);
   const lines = [{
     label: 'fontHash',

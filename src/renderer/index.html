@@ -10,13 +10,37 @@
 <body>
   <header class="topbar">
     <div class="brand">
-      <span class="logo">HD</span>
+      <img class="logo" src="assets/app-logo.png" width="50" height="50" alt="Auto Test Core Hidemium" />
       <div>
         <h1>Auto Test Core Hidemium</h1>
         <p class="sub" data-i18n="app.subtitle">Chọn Cloud/Local → tick profile → chạy check</p>
       </div>
     </div>
     <div class="topbar-actions">
+      <div class="settings-menu" id="settings-menu">
+        <button id="btn-settings" class="btn" type="button" data-i18n-title="btn.settings.title" title="Cài đặt" aria-haspopup="true" aria-expanded="false">
+          <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+            <path fill="currentColor" d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.03 7.03 0 0 0-1.63-.94l-.36-2.54A.5.5 0 0 0 13.9 2h-3.8a.5.5 0 0 0-.49.42l-.36 2.54c-.59.24-1.13.55-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.71 8.84a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32c.13.23.4.32.64.22l2.39-.96c.5.39 1.04.7 1.63.94l.36 2.54c.05.24.25.42.49.42h3.8c.24 0 .44-.18.49-.42l.36-2.54c.59-.24 1.13-.55 1.63-.94l2.39.96c.24.1.51 0 .64-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58ZM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7Z"/>
+          </svg>
+          <span class="i18n-text" data-i18n="btn.settings">Cài đặt</span>
+        </button>
+        <div id="settings-popover" class="settings-popover" hidden>
+          <div class="settings-pop-field">
+            <label for="sel-theme" data-i18n="settings.theme">Theme</label>
+            <select id="sel-theme" class="select">
+              <option value="dark" data-i18n="theme.dark">Tối</option>
+              <option value="light" data-i18n="theme.light">Sáng</option>
+            </select>
+          </div>
+          <div class="settings-pop-field">
+            <label for="sel-locale" data-i18n="settings.language">Ngôn ngữ</label>
+            <select id="sel-locale" class="select">
+              <option value="vi">Tiếng Việt</option>
+              <option value="en">English</option>
+            </select>
+          </div>
+        </div>
+      </div>
       <button id="btn-run" class="btn btn-primary">
         <span aria-hidden="true">&#9654;</span>
         <span class="i18n-text" data-i18n="btn.run">Chạy</span>
@@ -90,14 +114,6 @@
     <aside class="panel panel-settings">
       <div class="panel-head"><h2 data-i18n="panel.settings">Setting</h2></div>
       <div class="settings-body">
-        <div class="field">
-          <label for="sel-locale" data-i18n="settings.language">Ngôn ngữ</label>
-          <select id="sel-locale" class="select">
-            <option value="vi">Tiếng Việt</option>
-            <option value="en">English</option>
-          </select>
-        </div>
-
         <div class="field">
           <label for="num-threads" data-i18n="settings.threads">Số luồng chạy</label>
           <input id="num-threads" type="number" min="1" max="100" value="5" />
@@ -257,6 +273,7 @@
   <script src="js/detail/render.js"></script>
   <script src="js/detail/detailLog.js"></script>
   <script src="js/state.js"></script>
+  <script src="js/profileIcons.js"></script>
   <script src="js/profileSource.js"></script>
   <script src="js/table.js"></script>
   <script src="js/settings.js"></script>

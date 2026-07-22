@@ -5,6 +5,8 @@
 const I18N_EN = {
   'app.subtitle': 'Pick Cloud/Local → tick profiles → run check',
   'btn.run': 'Run',
+  'btn.settings': 'Settings',
+  'btn.settings.title': 'Theme and language',
   'btn.testLane': 'Test lanes',
   'btn.testLane.title': 'Test lanes: open profile → wait → close (no config/site check)',
   'btn.detailLog': 'Detail Log',
@@ -12,6 +14,9 @@ const I18N_EN = {
   'btn.stop': 'Stop',
   'btn.stop.title': 'Stop run / close open profiles',
   'btn.reload.title': 'Reload list',
+  'settings.theme': 'Theme',
+  'theme.dark': 'Dark',
+  'theme.light': 'Light',
   'tab.cloud': 'Cloud',
   'tab.cloud.title': 'Cloud profiles (is_local=false)',
   'tab.local': 'Local',
