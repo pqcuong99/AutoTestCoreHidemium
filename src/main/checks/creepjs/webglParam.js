@@ -121,13 +121,14 @@ function paintWebglParamsInPage(pass) {
   return modals.length;
 }
 
-function findActual(params, configName, extensions, expected) {
+function findActual(params, configName, extensions) {
   const normalized = normalizeParamName(configName);
   if (normalized === 'webgl_extension') {
     return (extensions || []).join(',');
   }
+  // WebGL2 extension list: CreepJS khong expose rieng — khong so khi co config.
   if (normalized === 'webgl_extension_2') {
-    return isDefault(expected) ? 'default' : null;
+    return null;
   }
   if (normalized in params) return params[normalized];
   if (normalized.endsWith('2')) {
@@ -135,6 +136,47 @@ function findActual(params, configName, extensions, expected) {
     if (withoutContextSuffix in params) return params[withoutContextSuffix];
   }
   return null;
+}
+
+function buildLine(label, actual, expected) {
+  const rawActual = actual == null || actual === '' ? '' : String(actual);
+
+  // default / empty config → chi hien thi, khong so sanh vs config.
+  if (isDefault(expected)) {
+    return {
+      label,
+      actual: rawActual || 'undefined',
+      value: rawActual || 'undefined',
+      expected: '',
+      pass: true,
+      skipped: true,
+      infoOnly: true,
+    };
+  }
+
+  if (!rawActual || /^undefined$/i.test(rawActual)) {
+    return {
+      label,
+      actual: 'undefined',
+      value: 'undefined',
+      expected: String(expected),
+      pass: false,
+      skipped: true,
+      missingOnWeb: true,
+    };
+  }
+
+  const ok = /^webgl_extension$/i.test(label)
+    ? normalizeExtensionList(rawActual) === normalizeExtensionList(expected)
+    : normalizeValue(rawActual) === normalizeValue(expected);
+
+  return {
+    label,
+    actual: rawActual,
+    value: rawActual,
+    expected: String(expected),
+    pass: ok,
+  };
 }
 
 async function checkWebglParam(page, configMap, ctx) {
@@ -152,6 +194,14 @@ async function checkWebglParam(page, configMap, ctx) {
   const configured = Object.keys(configMap)
     .filter((key) => key.startsWith(CFG_PREFIX))
     .sort();
+  const comparable = configured.filter((key) => !isDefault(configMap[key]));
+
+  if (configured.length && !comparable.length) {
+    ctx.step(
+      'CreepJS WebGL Param: tat ca config=default — chi hien thi, khong so sanh',
+      'ok'
+    );
+  }
 
   const lines = configured.length
     ? configured.map((configKey) => {
@@ -160,37 +210,21 @@ async function checkWebglParam(page, configMap, ctx) {
         const actual = findActual(
           scraped.params,
           label,
-          scraped.extensions,
-          expected
+          scraped.extensions
         );
-        return {
-          label,
-          value: actual == null ? '' : String(actual),
-          expected: isDefault(expected) ? 'default' : String(expected),
-          pass: isDefault(expected)
-            ? null
-            : actual != null &&
-              (/^webgl_extension$/i.test(label)
-                ? normalizeExtensionList(actual) ===
-                  normalizeExtensionList(expected)
-                : normalizeValue(actual) === normalizeValue(expected)),
-        };
+        return buildLine(label, actual, expected);
       })
-    : Object.entries(scraped.params).map(([label, value]) => ({
-        label,
-        value: String(value),
-        expected: 'default',
-        pass: null,
-      }));
+    : Object.entries(scraped.params).map(([label, value]) =>
+        buildLine(label, value, null)
+      );
 
   const result = summarizeLines(lines);
-  const painted = await page.evaluate(
-    paintWebglParamsInPage,
-    result.pass
-  );
+  const hasMismatch = (result.lines || []).some((line) => line.status === 'mismatch');
+  const paintPass = hasMismatch ? false : result.state === 'pass' ? true : null;
+  const painted = await page.evaluate(paintWebglParamsInPage, paintPass);
   ctx.step(
-    `CreepJS WebGL Param: ${scraped.count} params + ${scraped.extensions.length} extensions, ${result.state} (hl ${painted})`,
-    result.pass === false ? 'err' : 'ok'
+    `CreepJS WebGL Param: ${scraped.count} params + ${scraped.extensions.length} extensions, compare=${comparable.length}, ${result.state} (hl ${painted})`,
+    hasMismatch ? 'err' : 'ok'
   );
   return result;
 }

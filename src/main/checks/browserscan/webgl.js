@@ -1,13 +1,17 @@
 /**
  * BrowserScan WebGL — hash + Unmasked Vendor + Unmasked Renderer.
+ * Gia tri hydrate cham / bi quang cao ghep text → wait + fallback API + reload 1 lan.
  */
 const { evaluateInPage } = require('./runtime');
+const { BROWSERSCAN_URL } = require('./urls');
 
 const CFG = {
   mode: 'hidemium.webgl.mode',
   vendor: 'hidemium.webgl.vendor',
   renderer: 'hidemium.webgl.renderer',
 };
+const READY_TIMEOUT_MS = 12000;
+const LOAD_TIMEOUT_MS = 90000;
 
 function cfgStr(map, key) {
   if (!(key in map) || map[key] == null || map[key] === '') return null;
@@ -33,27 +37,97 @@ function decodeExpectedRenderer(value) {
 }
 
 function scrapeWebglInPage() {
-  function selectValue(label, marker) {
-    const heading = [...document.querySelectorAll('h3')].find(
-      (element) =>
-        (element.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase() ===
-        label.toLowerCase()
-    );
-    if (!heading) return null;
-    const card =
-      heading.parentElement?.parentElement?.parentElement ||
-      heading.parentElement;
-    const valueElement = card?.querySelector('p');
-    if (!valueElement) return null;
-    valueElement.setAttribute(`data-autotest-bs-webgl-${marker}`, '1');
-    return (valueElement.textContent || '').replace(/\s+/g, ' ').trim() || null;
+  function normalize(value) {
+    return String(value || '').replace(/\s+/g, ' ').trim();
   }
 
-  const hashText = selectValue('WebGL', 'hash');
+  function findHeading(label) {
+    return [...document.querySelectorAll('h3')].find(
+      (element) =>
+        normalize(element.textContent).toLowerCase() === label.toLowerCase()
+    );
+  }
+
+  function cardOf(heading) {
+    return (
+      heading?.parentElement?.parentElement?.parentElement ||
+      heading?.parentElement ||
+      null
+    );
+  }
+
+  function cleanAdNoise(text) {
+    return normalize(text)
+      .replace(
+        /\s*(?:Free\s+DNS|Internet\s+Speed|Antidetect|Sign\s+In|Discover\s+more|blog\b).*$/i,
+        ''
+      )
+      .trim();
+  }
+
+  function selectValue(label, marker, accept) {
+    const heading = findHeading(label);
+    if (!heading) return null;
+    const card = cardOf(heading);
+    if (!card) return null;
+
+    const candidates = [...card.querySelectorAll('p, span, div')]
+      .map((element) => ({
+        element,
+        text: cleanAdNoise(element.innerText || element.textContent || ''),
+      }))
+      .filter((item) => item.text && item.text.toLowerCase() !== label.toLowerCase())
+      .filter((item) => !accept || accept(item.text));
+
+    // Uu tien node ngan nhat (dung value, khong nham ca card).
+    candidates.sort((a, b) => a.text.length - b.text.length);
+    const best = candidates[0];
+    if (!best) return null;
+    best.element.setAttribute(`data-autotest-bs-webgl-${marker}`, '1');
+    return best.text || null;
+  }
+
+  function apiVendorRenderer() {
+    try {
+      const canvas = document.createElement('canvas');
+      const gl =
+        canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+      const extension = gl && gl.getExtension('WEBGL_debug_renderer_info');
+      if (!gl || !extension) return { vendor: null, renderer: null };
+      return {
+        vendor: String(gl.getParameter(extension.UNMASKED_VENDOR_WEBGL) || '').trim() || null,
+        renderer:
+          String(gl.getParameter(extension.UNMASKED_RENDERER_WEBGL) || '').trim() ||
+          null,
+      };
+    } catch {
+      return { vendor: null, renderer: null };
+    }
+  }
+
+  const hashText = selectValue('WebGL', 'hash', (text) =>
+    /\b(?:0x)?[a-f0-9]{6,128}\b/i.test(text)
+  );
+  let vendor = selectValue('Unmasked Vendor', 'vendor', (text) =>
+    /inc|google|apple|nvidia|amd|intel|qualcomm|arm|mesa|microsoft/i.test(text)
+  );
+  let renderer = selectValue('Unmasked Renderer', 'renderer', (text) =>
+    /angle|radeon|geforce|intel|apple|mali|adreno|swiftshader|metal|opengl|direct3d/i.test(
+      text
+    )
+  );
+
+  if (!vendor || !renderer) {
+    const api = apiVendorRenderer();
+    vendor = vendor || api.vendor;
+    renderer = renderer || api.renderer;
+  }
+
   return {
-    hash: hashText?.match(/\b(?:0x)?[a-f0-9]{8,128}\b/i)?.[0] || null,
-    vendor: selectValue('Unmasked Vendor', 'vendor'),
-    renderer: selectValue('Unmasked Renderer', 'renderer'),
+    hash: hashText?.match(/\b(?:0x)?[a-f0-9]{6,128}\b/i)?.[0] || null,
+    vendor,
+    renderer,
+    ready: !!(hashText || vendor || renderer),
   };
 }
 
@@ -107,9 +181,46 @@ function comparedLine(label, actual, expected) {
   };
 }
 
+function isComplete(scraped) {
+  return !!(scraped?.hash && scraped?.vendor && scraped?.renderer);
+}
+
+async function scrapeUntilReady(page, timeoutMs) {
+  const started = Date.now();
+  let last = { hash: null, vendor: null, renderer: null };
+  while (Date.now() - started < timeoutMs) {
+    last = (await evaluateInPage(page, scrapeWebglInPage)) || last;
+    if (isComplete(last)) return last;
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  return last;
+}
+
 async function checkWebgl(page, configMap, ctx) {
-  ctx.step('BrowserScan WebGL: select hash/vendor/renderer...');
-  const scraped = await evaluateInPage(page, scrapeWebglInPage);
+  ctx.step('BrowserScan WebGL: cho hash/vendor/renderer hydrate...');
+  let scraped = await scrapeUntilReady(page, READY_TIMEOUT_MS);
+
+  if (!isComplete(scraped)) {
+    if (ctx.signal?.aborted) throw new Error('aborted');
+    ctx.step(
+      'BrowserScan WebGL: thieu hash/vendor/renderer (hydrate/quang cao) — reload 1 lan',
+      'warn'
+    );
+    if (/^https?:\/\/(?:www\.)?browserscan\.net\/?$/i.test(page.url())) {
+      await page.reload({
+        waitUntil: 'domcontentloaded',
+        timeout: LOAD_TIMEOUT_MS,
+      });
+    } else {
+      await page.goto(BROWSERSCAN_URL, {
+        waitUntil: 'domcontentloaded',
+        timeout: LOAD_TIMEOUT_MS,
+      });
+    }
+    if (ctx.signal?.aborted) throw new Error('aborted');
+    scraped = await scrapeUntilReady(page, READY_TIMEOUT_MS);
+  }
+
   const lines = [
     {
       label: 'hash',
@@ -140,7 +251,7 @@ async function checkWebgl(page, configMap, ctx) {
     { key: 'renderer', pass: lines[2].pass },
   ]);
   ctx.step(
-    `BrowserScan WebGL: hash=${scraped.hash || 'null'} (hl ${painted})`,
+    `BrowserScan WebGL: hash=${scraped.hash || 'null'} vendor=${scraped.vendor || 'null'} (hl ${painted})`,
     result.pass === false ? 'err' : 'ok'
   );
   return result;

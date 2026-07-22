@@ -71,25 +71,40 @@ async function scrapeWebgpuInPage() {
   }
 
   let features = [];
+  let unsupported = false;
   try {
-    const adapter = await navigator.gpu?.requestAdapter();
-    if (adapter?.features) features = [...adapter.features.values()];
-    if ((!vendor || /^unknown$/i.test(vendor)) && adapter?.info?.vendor) {
-      vendor = adapter.info.vendor;
+    if (!navigator.gpu) {
+      unsupported = true;
+    } else {
+      const adapter = await navigator.gpu.requestAdapter();
+      if (!adapter) {
+        unsupported = true;
+      } else {
+        if (adapter.features) features = [...adapter.features.values()];
+        if ((!vendor || /^unknown$/i.test(vendor)) && adapter.info?.vendor) {
+          vendor = adapter.info.vendor;
+        }
+        if (
+          (!architecture || /^unknown$/i.test(architecture)) &&
+          adapter.info?.architecture
+        ) {
+          architecture = adapter.info.architecture;
+        }
+      }
     }
-    if (
-      (!architecture || /^unknown$/i.test(architecture)) &&
-      adapter?.info?.architecture
-    ) {
-      architecture = adapter.info.architecture;
-    }
-  } catch { /* ignore */ }
+  } catch {
+    unsupported = true;
+  }
+
+  const modalText = (modal?.innerText || '').toLowerCase();
+  if (/unsupported|not supported|n\/a/.test(modalText)) unsupported = true;
 
   return {
     vendor: vendor || null,
     architecture: architecture || null,
     features,
     limits,
+    unsupported,
   };
 }
 
@@ -123,17 +138,76 @@ function paintWebgpuInPage(pass) {
 }
 
 function makeLine(label, actual, expected, list = false) {
+  const raw =
+    actual == null || actual === ''
+      ? ''
+      : String(actual);
+
+  if (isDefault(expected)) {
+    return {
+      label,
+      actual: raw || 'undefined',
+      value: raw || 'undefined',
+      expected: '',
+      pass: true,
+      skipped: true,
+      infoOnly: true,
+    };
+  }
+
+  if (!raw || /^undefined$/i.test(raw)) {
+    return {
+      label,
+      actual: 'undefined',
+      value: 'undefined',
+      expected: String(expected),
+      pass: false,
+      skipped: true,
+      missingOnWeb: true,
+    };
+  }
+
   return {
     label,
-    value: actual == null ? '' : String(actual),
-    expected: isDefault(expected) ? 'default' : String(expected),
-    pass: isDefault(expected)
-      ? null
-      : actual != null &&
-        (list
-          ? normalizeList(actual) === normalizeList(expected)
-          : normalizeValue(actual) === normalizeValue(expected)),
+    actual: raw,
+    value: raw,
+    expected: String(expected),
+    pass: list
+      ? normalizeList(raw) === normalizeList(expected)
+      : normalizeValue(raw) === normalizeValue(expected),
   };
+}
+
+function skippedUnsupported() {
+  return {
+    state: 'skipped',
+    pass: null,
+    value: 'WebGPU not supported — skipped',
+    lines: [{ text: 'WebGPU not supported — skipped', status: 'info' }],
+  };
+}
+
+function looksUnsupported(scraped) {
+  if (scraped?.unsupported) return true;
+  const vendor = normalizeValue(scraped?.vendor);
+  const architecture = normalizeValue(scraped?.architecture);
+  const emptyInfo =
+    !vendor ||
+    vendor === 'undefined' ||
+    vendor === 'unknown' ||
+    vendor === 'empty' ||
+    !architecture ||
+    architecture === 'undefined' ||
+    architecture === 'unknown' ||
+    architecture === 'empty';
+  const limitValues = Object.values(scraped?.limits || {});
+  const emptyLimits =
+    !limitValues.length ||
+    limitValues.every((value) => {
+      const text = normalizeValue(value);
+      return !text || text === 'undefined' || text === 'unknown' || text === 'empty';
+    });
+  return emptyInfo && emptyLimits && !(scraped?.features || []).length;
 }
 
 async function checkWebgpu(page, configMap, ctx) {
@@ -144,6 +218,12 @@ async function checkWebgpu(page, configMap, ctx) {
   }
 
   const scraped = await page.evaluate(scrapeWebgpuInPage);
+  if (looksUnsupported(scraped)) {
+    ctx.step('CreepJS WebGPU: not supported — skip webgpu/param', 'warn');
+    await page.evaluate(paintWebgpuInPage, null).catch(() => {});
+    return skippedUnsupported();
+  }
+
   const lines = [
     makeLine('vendor', scraped.vendor, cfgStr(configMap, CFG.vendor)),
     makeLine(
@@ -183,10 +263,12 @@ async function checkWebgpu(page, configMap, ctx) {
   }
 
   const result = summarizeLines(lines);
-  const painted = await page.evaluate(paintWebgpuInPage, result.pass);
+  const hasMismatch = (result.lines || []).some((line) => line.status === 'mismatch');
+  const paintPass = hasMismatch ? false : result.state === 'pass' ? true : null;
+  const painted = await page.evaluate(paintWebgpuInPage, paintPass);
   ctx.step(
     `CreepJS WebGPU: ${scraped.features.length} features + ${Object.keys(scraped.limits).length} limits, ${result.state} (hl ${painted})`,
-    result.pass === false ? 'err' : 'ok'
+    hasMismatch ? 'err' : 'ok'
   );
   return result;
 }

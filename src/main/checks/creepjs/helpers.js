@@ -181,9 +181,13 @@ function toFieldResult(line) {
 
   const expected = rawExp == null ? '' : String(rawExp);
 
-  if (!actual) {
+  // CreepJS: thieu / undefined tren web → missingOnWeb (tim), khong do mismatch.
+  if (!actual || /^undefined$/i.test(actual)) {
     return {
-      ...base,
+      label,
+      actual: 'undefined',
+      needle: needle || 'undefined',
+      selector,
       expected,
       pass: false,
       skipped: true,
@@ -215,25 +219,36 @@ function summarizeLines(lines, opts) {
  * @param {'str'|'num'} [mode]
  */
 function lineResult(label, actual, expected, needle, mode = 'str') {
-  const actualStr =
+  const rawActual =
     actual == null || actual === '' || (typeof actual === 'number' && Number.isNaN(actual))
       ? ''
       : String(actual);
   const defaultExp = isDefault(expected);
   const base = {
     label,
-    actual: actualStr,
-    needle: needle || (actualStr || null),
+    actual: rawActual,
+    needle: needle || (rawActual || null),
   };
 
   if (defaultExp) {
-    return { ...base, expected: '', pass: true, skipped: true, infoOnly: true };
+    return {
+      ...base,
+      actual: rawActual || 'undefined',
+      needle: needle || (rawActual || 'undefined'),
+      expected: '',
+      pass: true,
+      skipped: true,
+      infoOnly: true,
+    };
   }
 
   const exp = String(expected);
-  if (!actualStr) {
+  // Thieu / undefined tren web → missingOnWeb (khong do mismatch).
+  if (!rawActual || /^undefined$/i.test(rawActual)) {
     return {
-      ...base,
+      label,
+      actual: 'undefined',
+      needle: needle || 'undefined',
       expected: exp,
       pass: false,
       skipped: true,
@@ -241,7 +256,7 @@ function lineResult(label, actual, expected, needle, mode = 'str') {
     };
   }
 
-  const ok = mode === 'num' ? eqNum(actual, expected) : eqStr(actual, expected);
+  const ok = mode === 'num' ? eqNum(actual, expected) : eqStr(rawActual, expected);
   return { ...base, expected: exp, pass: !!ok };
 }
 

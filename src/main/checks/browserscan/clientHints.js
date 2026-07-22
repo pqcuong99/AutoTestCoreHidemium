@@ -232,14 +232,96 @@ async function getClientHintsPage(mainPage, ctx) {
   return page;
 }
 
+function skippedUnsupported(policyTag) {
+  return {
+    state: 'skipped',
+    pass: null,
+    value: policyTag
+      ? `skipped (${policyTag} policy)`
+      : 'Client Hints not supported — skipped',
+    lines: [
+      {
+        text: policyTag
+          ? `skipped (${policyTag} policy)`
+          : 'Client Hints not supported — skipped',
+        status: 'info',
+      },
+    ],
+  };
+}
+
+async function isClientHintsUnsupported(page) {
+  return evaluateInPage(page, () => {
+    if (!navigator.userAgentData) return true;
+    const body = (document.body?.innerText || '').toLowerCase();
+    const modelBlocked =
+      /sec-ch-ua-model/.test(body) &&
+      /sec-ch-ua-model[\s\S]{0,80}(not received|unsupported|n\/a|undefined)/i.test(
+        body
+      );
+    const listBlocked =
+      /sec-ch-ua-full-version-list|sec-ch-ua-full-version/.test(body) &&
+      /sec-ch-ua-full-version(?:-list)?[\s\S]{0,80}(not received|unsupported|n\/a|undefined)/i.test(
+        body
+      );
+    return modelBlocked && listBlocked;
+  }).catch(() => false);
+}
+
+function looksUnsupportedScraped(scraped) {
+  return (
+    scraped?.model == null &&
+    scraped?.fullVersion == null &&
+    scraped?.chromeVersion == null
+  );
+}
+
 async function runClientHintsChecks(mainPage, keys, configMap, ctx) {
+  const platform = ctx.platform;
+  const skipChecks = platform?.skipChecks || new Set();
+  const policyTag = platform?.browser
+    ? `${platform.id}/${platform.browser}`
+    : platform?.id || '';
+
+  const results = {};
+  const runKeys = [];
+  for (const key of keys) {
+    if (skipChecks.has(key)) {
+      results[key] = skippedUnsupported(policyTag || 'policy');
+      ctx.step(
+        `BrowserScan Client Hints ${key}: skipped (${policyTag || 'policy'})`,
+        'warn'
+      );
+    } else {
+      runKeys.push(key);
+    }
+  }
+  if (!runKeys.length) return results;
+
   const page = await getClientHintsPage(mainPage, ctx);
+  if (await isClientHintsUnsupported(page)) {
+    ctx.step(
+      'BrowserScan Client Hints: not supported — skip model/full_version_list/form_factors',
+      'warn'
+    );
+    for (const key of runKeys) results[key] = skippedUnsupported('');
+    return results;
+  }
+
   ctx.step('BrowserScan Client Hints: select elements...');
   const scraped = await evaluateInPage(page, scrapeClientHintsInPage);
-  const results = {};
+  if (looksUnsupportedScraped(scraped)) {
+    ctx.step(
+      'BrowserScan Client Hints: not supported — skip model/full_version_list/form_factors',
+      'warn'
+    );
+    for (const key of runKeys) results[key] = skippedUnsupported('');
+    return results;
+  }
+
   const marks = [];
 
-  for (const key of keys) {
+  for (const key of runKeys) {
     let lines;
     let markerKeys;
     if (key === 'model') {

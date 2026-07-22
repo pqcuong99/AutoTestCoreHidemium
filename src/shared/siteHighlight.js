@@ -101,10 +101,12 @@
 
     if (status === STATUS.MISSING_ON_WEB) {
       const exp = String(f.expected || '').trim();
+      const displayVal =
+        actual && !/^\(empty\)$/i.test(actual) ? actual : 'undefined';
       const text = exp
-        ? `${label}: (empty) — expect ${exp}${mark}`
-        : `${label}: (empty)${mark}`;
-      return [{ text, status, label, value: '(empty)' }];
+        ? `${label}: ${displayVal}${mark}`
+        : `${label}: ${displayVal}${mark}`;
+      return [{ text, status, label, value: displayVal }];
     }
 
     if (!actual && status !== STATUS.NO_CONFIG) {
