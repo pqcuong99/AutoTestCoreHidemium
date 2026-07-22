@@ -2,20 +2,9 @@
  * Ve bang profile + xu ly checkbox / tim kiem.
  */
 window.Table = (() => {
+  /** Hang dang hien: ProfileSource da loc OS + search + slice trang. */
   function visibleRows() {
-    const targetOs =
-      (typeof Settings !== 'undefined' && Settings.getTargetOs && Settings.getTargetOs()) ||
-      'windows';
-    const matchOs = window.ProfileOs
-      ? (r) => window.ProfileOs.profileMatchesTargetOs(r.os, targetOs)
-      : () => true;
-
-    let rows = State.rows.filter(matchOs);
-    const q = State.filter.trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter(
-      (r) => r.uuid.toLowerCase().includes(q) || (r.name || '').toLowerCase().includes(q)
-    );
+    return State.rows || [];
   }
 
   /** Bo tick profile khong khop targetOs (goi khi doi Settings OS). */
@@ -24,9 +13,10 @@ window.Table = (() => {
       (typeof Settings !== 'undefined' && Settings.getTargetOs && Settings.getTargetOs()) ||
       'windows';
     if (!window.ProfileOs || targetOs === 'all') return 0;
+    const pool = State.allRows?.length ? State.allRows : State.rows;
     let removed = 0;
     for (const [uuid, row] of Array.from(State.selected.entries())) {
-      const os = row.os != null ? row.os : State.rows.find((r) => r.uuid === uuid)?.os;
+      const os = row.os != null ? row.os : pool.find((r) => r.uuid === uuid)?.os;
       if (!window.ProfileOs.profileMatchesTargetOs(os, targetOs)) {
         State.selected.delete(uuid);
         removed++;
@@ -39,17 +29,31 @@ window.Table = (() => {
   function render() {
     const rows = visibleRows();
     const tbody = $('#tbody');
+    const offset = ((State.meta?.currentPage || 1) - 1) * (State.meta?.perPage || 20);
 
     tbody.innerHTML = rows
       .map((r, i) => {
         const st = State.status[r.uuid] || 'idle';
         const stText = State.statusText[r.uuid] || I18n.statusLabel(st);
         const checked = State.selected.has(r.uuid) ? 'checked' : '';
+        const iconHtml =
+          window.ProfileIcons && ProfileIcons.buildStackHtml
+            ? ProfileIcons.buildStackHtml({
+                browser: r.browser || '',
+                os: r.os || '',
+                coreVersion: r.coreVersion || '',
+              })
+            : '';
         return `<tr data-uuid="${escapeHtml(r.uuid)}">
           <td class="col-chk"><input type="checkbox" class="row-chk" ${checked} /></td>
-          <td class="col-no">${i + 1}</td>
+          <td class="col-no">${offset + i + 1}</td>
           <td class="uuid">${escapeHtml(r.uuid)}</td>
-          <td>${escapeHtml(r.name || '-')}</td>
+          <td class="col-name">
+            <div class="profile-name-cell">
+              ${iconHtml}
+              <span class="profile-name-text">${escapeHtml(r.name || '-')}</span>
+            </div>
+          </td>
           <td class="col-status"><span class="st st-${st}" title="${escapeHtml(stText)}">${escapeHtml(stText)}</span></td>
         </tr>`;
       })
@@ -88,6 +92,7 @@ window.Table = (() => {
         name: row.name,
         os: row.os || '',
         browser: row.browser || '',
+        coreVersion: row.coreVersion || '',
       });
     } else State.selected.delete(row.uuid);
   }
@@ -115,7 +120,12 @@ window.Table = (() => {
       clearTimeout(timer);
       timer = setTimeout(() => {
         State.filter = e.target.value;
-        render();
+        // Loc tren allRows + phan trang lai (khong chi loc trang hien tai)
+        if (typeof ProfileSource !== 'undefined' && ProfileSource.refreshView) {
+          ProfileSource.refreshView({ page: 1 });
+        } else {
+          render();
+        }
       }, 150);
     });
   }
@@ -124,9 +134,10 @@ window.Table = (() => {
     const targetOs =
       (typeof Settings !== 'undefined' && Settings.getTargetOs && Settings.getTargetOs()) ||
       'windows';
+    const pool = State.allRows?.length ? State.allRows : State.rows;
     return Array.from(State.selected.values())
       .map((r) => {
-        const row = State.rows.find((x) => x.uuid === r.uuid);
+        const row = pool.find((x) => x.uuid === r.uuid);
         return {
           uuid: r.uuid,
           name: r.name || row?.name || '',

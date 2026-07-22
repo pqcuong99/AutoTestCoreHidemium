@@ -1,5 +1,5 @@
 /**
- * Panel Setting: ngon ngu + OS target + so luong chay + danh sach muc check.
+ * Panel Setting (ben phai) + popover topbar (Theme / Language).
  * Moi thay doi deu duoc luu ngay vao config.json.
  */
 window.Settings = (() => {
@@ -58,6 +58,45 @@ window.Settings = (() => {
     }
   }
 
+  function renderLocaleOptions() {
+    const sel = $('#sel-locale');
+    if (!sel) return;
+    const cur = cfg.locale === 'en' ? 'en' : 'vi';
+    sel.innerHTML = `
+      <option value="vi" ${cur === 'vi' ? 'selected' : ''}>${escapeHtml(t('lang.vi'))}</option>
+      <option value="en" ${cur === 'en' ? 'selected' : ''}>${escapeHtml(t('lang.en'))}</option>
+    `;
+  }
+
+  function renderThemeOptions() {
+    const sel = $('#sel-theme');
+    if (!sel) return;
+    const cur = cfg.theme === 'light' ? 'light' : 'dark';
+    sel.innerHTML = `
+      <option value="dark" ${cur === 'dark' ? 'selected' : ''}>${escapeHtml(t('theme.dark'))}</option>
+      <option value="light" ${cur === 'light' ? 'selected' : ''}>${escapeHtml(t('theme.light'))}</option>
+    `;
+  }
+
+  function applyTheme(theme) {
+    const next = theme === 'light' ? 'light' : 'dark';
+    cfg.theme = next;
+    document.documentElement.setAttribute('data-theme', next);
+    const sel = $('#sel-theme');
+    if (sel && sel.value !== next) sel.value = next;
+    // Doi logo iOS/Linux (black <-> white fill)
+    if (typeof Table !== 'undefined') Table.render();
+  }
+
+  function setSettingsOpen(open) {
+    const pop = $('#settings-popover');
+    const btn = $('#btn-settings');
+    if (!pop || !btn) return;
+    pop.hidden = !open;
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    btn.classList.toggle('active', open);
+  }
+
   function getCheckKeys() {
     return $$('#check-list input[type="checkbox"]:checked').map((el) => el.dataset.key);
   }
@@ -85,6 +124,8 @@ window.Settings = (() => {
     I18n.applyDom();
     renderChecks(cfg.checks || {});
     renderOsOptions();
+    renderLocaleOptions();
+    renderThemeOptions();
     if (typeof Table !== 'undefined') Table.render();
     if (typeof DRender !== 'undefined' && DetailLog.isOpen()) DRender.all();
     const pt = $('#progress-text');
@@ -95,20 +136,45 @@ window.Settings = (() => {
     cfg = config || {};
     $('#num-threads').value = config.threads;
     const locale = config.locale === 'en' ? 'en' : 'vi';
-    $('#sel-locale').value = locale;
+    cfg.locale = locale;
+    cfg.theme = config.theme === 'light' ? 'light' : 'dark';
     $('#chk-auto-close').checked = !!config.autoClose;
     cfg.targetOs = config.targetOs || 'windows';
     const disableRestore = config.disableRestoreSession !== false;
     const restoreEl = $('#chk-disable-restore-session');
     if (restoreEl) restoreEl.checked = disableRestore;
     cfg.disableRestoreSession = disableRestore;
+
+    applyTheme(cfg.theme);
     applyLocale(locale);
 
-    $('#sel-locale').addEventListener('change', async () => {
+    $('#btn-settings')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const pop = $('#settings-popover');
+      setSettingsOpen(!!pop?.hidden);
+    });
+
+    document.addEventListener('click', (e) => {
+      const menu = $('#settings-menu');
+      if (!menu || menu.contains(e.target)) return;
+      setSettingsOpen(false);
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') setSettingsOpen(false);
+    });
+
+    $('#sel-locale')?.addEventListener('change', async () => {
       const next = $('#sel-locale').value === 'en' ? 'en' : 'vi';
       cfg.locale = next;
       await window.api.config.set({ locale: next });
       applyLocale(next);
+    });
+
+    $('#sel-theme')?.addEventListener('change', async () => {
+      const next = $('#sel-theme').value === 'light' ? 'light' : 'dark';
+      applyTheme(next);
+      await window.api.config.set({ theme: next });
     });
 
     $('#num-threads').addEventListener('change', () => {
@@ -121,7 +187,10 @@ window.Settings = (() => {
       const os = getTargetOs();
       cfg.targetOs = os;
       window.api.config.set({ targetOs: os });
-      if (typeof Table !== 'undefined') {
+      // Loc lai allRows theo OS moi + phan trang client (tranh trang chi con 1-2 dong)
+      if (typeof ProfileSource !== 'undefined' && ProfileSource.refreshView) {
+        ProfileSource.refreshView({ page: 1 });
+      } else if (typeof Table !== 'undefined') {
         Table.pruneSelectionByTargetOs?.();
         Table.render();
         Table.updateCount?.();
@@ -174,5 +243,6 @@ window.Settings = (() => {
     getDisableRestoreSession,
     getTargetOs,
     applyLocale,
+    applyTheme,
   };
 })();

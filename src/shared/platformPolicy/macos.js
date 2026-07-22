@@ -8,7 +8,7 @@ module.exports = {
   id: 'macos',
   label: 'macOS',
   supported: true,
-  skipChecks: [],
+  skipChecks: ['mac_address', 'desktop_name'],
   skipConfigKeys: [],
   matchAliases: {},
 

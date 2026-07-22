@@ -72,7 +72,9 @@ window.DRender = (() => {
     if (window.DTableResize) DTableResize.applyColumns();
   }
 
-  const FIELD_MAX = 6;
+  /** Thu gon theo so dong VA do dai text (font 3 dong nhung moi dong rat dai). */
+  const LINE_MAX = 6;
+  const VALUE_MAX = 96;
 
   /** Bo prefix [HARDWARE] / [BROWSER] ... trong label. */
   function cleanLabel(label) {
@@ -80,6 +82,29 @@ window.DRender = (() => {
       .replace(/^\[[^\]]+\]\s*/g, '')
       .replace(/\s+/g, ' ')
       .trim();
+  }
+
+  function clipValue(value, expanded) {
+    const s = String(value ?? '');
+    if (expanded || s.length <= VALUE_MAX) return { text: s, clipped: false };
+    return { text: s.slice(0, VALUE_MAX) + '…', clipped: true };
+  }
+
+  function moreLessFooter({ expanded, hiddenFields, longValues }) {
+    const canToggle = hiddenFields > 0 || longValues;
+    if (!canToggle) return '';
+    if (expanded) {
+      return `<div class="kv-less" data-collapse="1">${esc(t('detail.showLess'))}</div>`;
+    }
+    if (hiddenFields > 0) {
+      return `<div class="kv-more" data-expand="1">${esc(t('detail.moreLines', { n: hiddenFields }))}</div>`;
+    }
+    return `<div class="kv-more" data-expand="1">${esc(t('detail.showMore'))}</div>`;
+  }
+
+  function wrapKvBlock(inner, expanded) {
+    const cls = expanded ? 'dl-kv-block is-expanded' : 'dl-kv-block is-collapsed';
+    return `<div class="${cls}">${inner}</div>`;
   }
 
   /** Chuan hoa fields: { label, value } giong cot Config. */
@@ -111,81 +136,99 @@ window.DRender = (() => {
       .filter((f) => f.value);
   }
 
-  function kvListHtml(fields, { max = FIELD_MAX } = {}) {
+  function kvListHtml(fields, { expanded = false, max = LINE_MAX } = {}) {
     const list = normalizeFields(fields);
     if (!list.length) return '';
-    const shown = list.slice(0, max);
+    const longValues = list.some((f) => f.value.length > VALUE_MAX);
+    const hiddenFields = Math.max(0, list.length - max);
+    const shown = expanded ? list : list.slice(0, max);
     let html = shown
-      .map((f) => `<div class="kv"><span class="kv-k">${esc(f.label)}</span><span class="kv-v">${esc(f.value)}</span></div>`)
+      .map((f) => {
+        const c = clipValue(f.value, expanded);
+        return `<div class="kv"><span class="kv-k">${esc(f.label)}</span><span class="kv-v">${esc(c.text)}</span></div>`;
+      })
       .join('');
-    if (list.length > max) {
-      html += `<div class="kv-more" data-expand="1">${esc(t('detail.moreFields', { n: list.length - max }))}</div>`;
-    }
-    return html;
+    html += moreLessFooter({ expanded, hiddenFields, longValues });
+    return wrapKvBlock(html, expanded);
   }
 
-  function fieldsHtml(cfg) {
+  function fieldsHtml(cfg, { expanded = false } = {}) {
     if (!cfg || !cfg.found) return `<span class="cell-missing">${esc(t('detail.noConfig'))}</span>`;
-    return kvListHtml(cfg.fields);
+    return kvListHtml(cfg.fields, { expanded });
   }
 
   function fieldsHtmlAll(fieldsOrCfg) {
     const fields = Array.isArray(fieldsOrCfg) ? fieldsOrCfg : fieldsOrCfg?.fields || [];
-    return kvListHtml(fields, { max: fields.length });
+    return kvListHtml(fields, { expanded: true });
+  }
+
+  function oneLineKvHtml(body, cls, expanded) {
+    const idx = body.indexOf(':');
+    if (idx <= 0) {
+      const c = clipValue(body, expanded);
+      return { html: `<div class="kv ${cls}"><span class="kv-v">${esc(c.text)}</span></div>`, long: c.clipped || body.length > VALUE_MAX };
+    }
+    const k = body.slice(0, idx).trim();
+    const v = body.slice(idx + 1).trim();
+    const c = clipValue(v, expanded);
+    return {
+      html: `<div class="kv ${cls}"><span class="kv-k">${esc(k)}</span><span class="kv-v">${esc(c.text)}</span></div>`,
+      long: v.length > VALUE_MAX,
+    };
   }
 
   /** BrowserLeaks / CreepJS: lines SiteHighlight { text, status }. */
-  function siteLinesHtml(txt, structuredLines) {
+  function siteLinesHtml(txt, structuredLines, { expanded = false, max = LINE_MAX } = {}) {
     const SH = window.SiteHighlight;
+    let bodies = [];
 
     if (Array.isArray(structuredLines) && structuredLines.length) {
-      return structuredLines
-        .map((row) => {
-          const status = row.status || 'ok';
-          const cls = SH ? SH.cssClassFor(status) : '';
-          const raw = String(row.text || '');
-          const parsed = SH ? SH.parseLineStatus(raw) : { body: raw, status };
-          const body = parsed.body;
-          const idx = body.indexOf(':');
-          if (idx <= 0) {
-            return `<div class="kv ${cls}"><span class="kv-v">${esc(body)}</span></div>`;
-          }
-          const k = body.slice(0, idx).trim();
-          const v = body.slice(idx + 1).trim();
-          return `<div class="kv ${cls}"><span class="kv-k">${esc(k)}</span><span class="kv-v">${esc(v)}</span></div>`;
-        })
-        .join('');
-    }
+      bodies = structuredLines.map((row) => {
+        const status = row.status || 'ok';
+        const cls = SH ? SH.cssClassFor(status) : '';
+        const raw = String(row.text || '');
+        const parsed = SH ? SH.parseLineStatus(raw) : { body: raw, status };
+        return { body: parsed.body, cls };
+      });
+    } else {
+      const lines = String(txt ?? '')
+        .split(/\r?\n/)
+        .map((l) => l.trim())
+        .filter(Boolean);
+      if (!lines.length) return '';
 
-    const lines = String(txt ?? '')
-      .split(/\r?\n/)
-      .map((l) => l.trim())
-      .filter(Boolean);
-    if (!lines.length) return '';
+      const hasKv = lines.some((l) => /^[^:]+:\s*.+/.test(l));
+      if (!hasKv) {
+        const full = lines.join('\n');
+        const c = clipValue(full, expanded);
+        const longValues = full.length > VALUE_MAX;
+        const inner =
+          `<span class="site-cell-plain">${esc(c.text)}</span>` +
+          moreLessFooter({ expanded, hiddenFields: 0, longValues });
+        return wrapKvBlock(inner, expanded);
+      }
 
-    const hasKv = lines.some((l) => /^[^:]+:\s*.+/.test(l));
-    if (!hasKv) {
-      return `<span class="site-cell-plain">${esc(lines.join('\n'))}</span>`;
-    }
-
-    return lines
-      .map((line) => {
+      bodies = lines.map((line) => {
         const parsed = SH ? SH.parseLineStatus(line) : { body: line, status: 'ok' };
         const cls = SH ? SH.cssClassFor(parsed.status) : '';
-        const body = parsed.body;
-        const idx = body.indexOf(':');
-        if (idx <= 0) {
-          return `<div class="kv ${cls}"><span class="kv-v">${esc(body)}</span></div>`;
-        }
-        const k = body.slice(0, idx).trim();
-        const v = body.slice(idx + 1).trim();
-        return `<div class="kv ${cls}"><span class="kv-k">${esc(k)}</span><span class="kv-v">${esc(v)}</span></div>`;
-      })
-      .join('');
+        return { body: parsed.body, cls };
+      });
+    }
+
+    const longValues = bodies.some((b) => {
+      const idx = b.body.indexOf(':');
+      const v = idx > 0 ? b.body.slice(idx + 1).trim() : b.body;
+      return v.length > VALUE_MAX;
+    });
+    const hiddenFields = Math.max(0, bodies.length - max);
+    const shown = expanded ? bodies : bodies.slice(0, max);
+    let html = shown.map((b) => oneLineKvHtml(b.body, b.cls, expanded).html).join('');
+    html += moreLessFooter({ expanded, hiddenFields, longValues });
+    return wrapKvBlock(html, expanded);
   }
 
   /** Cot website: SiteHighlight lines, hoac fields (sannysoft/iphey), hoac value. */
-  function siteCell(site) {
+  function siteCell(site, { expanded = false } = {}) {
     if (!site) return '<span class="site-pending">-</span>';
     const cls =
       {
@@ -205,7 +248,7 @@ window.DRender = (() => {
 
     // Prefer SiteHighlight structured lines (BrowserLeaks / CreepJS)
     if (Array.isArray(site.lines) && site.lines.length && site.lines.some((l) => l && (l.text || l.status))) {
-      return `<div class="site-cell ${cls}">${siteLinesHtml(site.value, site.lines)}</div>`;
+      return `<div class="site-cell ${cls}">${siteLinesHtml(site.value, site.lines, { expanded })}</div>`;
     }
 
     // sannysoft / iphey: fields { label, value }
@@ -214,14 +257,19 @@ window.DRender = (() => {
     if (!fields.length) fields = normalizeFields(site.lines);
     if (!fields.length && site.value && site.value !== '-') fields = parseValueToFields(site.value);
     if (fields.length) {
-      return `<div class="site-cell site-kv ${cls}">${kvListHtml(fields)}</div>`;
+      return `<div class="site-cell site-kv ${cls}">${kvListHtml(fields, { expanded })}</div>`;
     }
 
     const txt =
       site.state === 'fail'
         ? site.value || site.state
         : site.value || t('detail.noData');
-    return `<span class="site-cell ${cls}"><span class="site-cell-plain">${esc(txt)}</span></span>`;
+    const c = clipValue(txt, expanded);
+    const longValues = String(txt).length > VALUE_MAX;
+    const inner =
+      `<span class="site-cell-plain">${esc(c.text)}</span>` +
+      moreLessFooter({ expanded, hiddenFields: 0, longValues });
+    return `<span class="site-cell ${cls}">${wrapKvBlock(inner, expanded)}</span>`;
   }
 
   function table() {
@@ -272,11 +320,20 @@ window.DRender = (() => {
         const item = CHECK_ITEMS.find((i) => i.key === key) || { label: key, group: '' };
         const row = r.rows[key];
         const siteCells = WEBSITES.map(
-          (w) => `<td class="cell-site" data-site="${esc(w.key)}">${siteCell(row?.sites?.[w.key])}</td>`
+          (w) =>
+            `<td class="cell-site" data-site="${esc(w.key)}"><div class="dl-cell-clip">${siteCell(
+              row?.sites?.[w.key]
+            )}</div></td>`
         ).join('');
         return `<tr data-key="${esc(key)}">
-          <td class="cell-a">${esc(item.label)}<small>${esc(groupLabel(item.group))}</small></td>
-          <td class="cell-b">${row ? fieldsHtml(row.config) : `<span class="cell-missing">${esc(t('detail.noData'))}</span>`}</td>
+          <td class="cell-a"><div class="dl-cell-clip">${esc(item.label)}<small>${esc(
+            groupLabel(item.group)
+          )}</small></div></td>
+          <td class="cell-b"><div class="dl-cell-clip">${
+            row
+              ? fieldsHtml(row.config)
+              : `<span class="cell-missing">${esc(t('detail.noData'))}</span>`
+          }</div></td>
           ${siteCells}
         </tr>`;
       })
@@ -309,5 +366,5 @@ window.DRender = (() => {
     logs();
   }
 
-  return { all, head, lanes, profiles, table, logs, header, fieldsHtmlAll, siteCell, esc };
+  return { all, head, lanes, profiles, table, logs, header, fieldsHtml, fieldsHtmlAll, siteCell, esc };
 })();

@@ -119,7 +119,7 @@ async function listBrowsers({
     const content = body.data && Array.isArray(body.data.content) ? body.data.content : null;
     if (!content) return { ok: false, error: 'Response thieu data.content' };
 
-    // Chi giu lai truong can dung cho bang + runner (+ os/browser de hien Detail Log).
+    // Chi giu lai truong can dung cho bang + runner (+ os/browser/core de hien logo).
     const rows = content
       .map((b) => {
         const browserName = pickBrowserFromBrowser(b);
@@ -129,6 +129,9 @@ async function listBrowsers({
           name: String(b.name || '').trim(),
           os: pickOsFromBrowser(b),
           browser: formatBrowserLabel(browserName, browserVer),
+          coreVersion: String(
+            b.source_version || b.sourceVersion || b.core_version || b.coreVersion || ''
+          ).trim(),
         };
       })
       .filter((r) => r.uuid !== '');

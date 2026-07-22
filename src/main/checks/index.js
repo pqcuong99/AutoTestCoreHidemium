@@ -163,14 +163,16 @@ async function runProfileCheck(lane, checkKeys, ctx) {
 
     // Doc OS / browser tu config — list API thuong thieu field.
     const configOs = osFromConfigMap(cfg.map) || normalizeProfileOs(openedOs);
+    const configBrowser = browserFromConfigMap(cfg.map);
+    // UA trong config tin cay hon list (list hay thieu / nham Chrome khi co chrome.version).
     const listBrowser = formatBrowserLabel(
       pickBrowserFromBrowser(opened.data) || pickBrowserFromBrowser(lane.job) || lane.job?.browser,
       pickBrowserVersion(opened.data) || pickBrowserVersion(lane.job)
     );
-    const browserLabel = listBrowser || browserFromConfigMap(cfg.map);
+    const browserLabel = configBrowser || listBrowser;
     const browserId =
+      normalizeBrowserId(configBrowser) ||
       normalizeBrowserId(listBrowser) ||
-      normalizeBrowserId(browserLabel) ||
       normalizeBrowserId(lane.job?.browser);
 
     // Gom policy OS + browsers[browserId] (vd mac/safari → skip webgpu).

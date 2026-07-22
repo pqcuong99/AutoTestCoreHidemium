@@ -3,11 +3,12 @@
  */
 window.State = {
   config: null,          // config luu tu main
-  rows: [],              // profile cua TRANG dang xem
+  allRows: [],           // toan bo profile da fetch (chua loc OS / search)
+  rows: [],              // profile cua TRANG dang xem (da loc + slice)
   selected: new Map(),   // uuid -> { uuid, name }; giu nguyen khi doi trang
   source: 'cloud',       // tab dang chon: 'cloud' | 'local'
-  page: 1,               // trang dang xem
-  meta: { currentPage: 1, lastPage: 1, total: 0 },
+  page: 1,               // trang dang xem (phan trang client sau khi loc OS)
+  meta: { currentPage: 1, lastPage: 1, total: 0, perPage: 20 },
   status: {},            // uuid -> 'idle' | 'running' | 'pass' | 'fail' | 'error' | 'stopped'
   statusText: {},        // uuid -> mo ta chi tiet, vd 'error open profile'
   filter: '',
