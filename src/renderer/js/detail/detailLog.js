@@ -19,6 +19,8 @@ window.DetailLog = (() => {
   let maximized = false;
   /** @type {{ left:number, top:number, width:number, height:number } | null} */
   let restoreGeom = null;
+  /** @type {(() => void) | null} */
+  let clampLogHeight = null;
 
   function pushLog(rec, message, kind) {
     rec.logs.push({
@@ -67,6 +69,25 @@ window.DetailLog = (() => {
         const r = DStore.record(evt.uuid);
         r.open = evt.data;
         if (evt.data?.profile_name) r.name = evt.data.profile_name;
+        const openedOs =
+          evt.data?.os || evt.data?.OS || evt.data?.platform || '';
+        if (openedOs) r.os = openedOs;
+        if (window.ProfileOs) {
+          const bName = window.ProfileOs.pickBrowserFromBrowser(evt.data);
+          const bVer = window.ProfileOs.pickBrowserVersion(evt.data);
+          const label = window.ProfileOs.formatBrowserLabel(bName, bVer);
+          if (label) r.browser = label;
+        }
+        draw.profiles();
+        if (S().current === evt.uuid) draw.table();
+        break;
+      }
+
+      case 'profile-meta': {
+        const r = DStore.record(evt.uuid);
+        if (evt.os) r.os = evt.os;
+        if (evt.browser) r.browser = evt.browser;
+        if (evt.name) r.name = evt.name;
         draw.profiles();
         if (S().current === evt.uuid) draw.table();
         break;
@@ -270,6 +291,7 @@ window.DetailLog = (() => {
       setMaximized(true);
     }
     saveGeom();
+    clampLogHeight?.();
   }
 
   function initWindowChrome() {
@@ -379,6 +401,7 @@ window.DetailLog = (() => {
     applyGeom(saved || defaultGeom());
     DRender.head();
     DRender.all();
+    clampLogHeight?.();
   }
 
   function close() {
@@ -399,6 +422,72 @@ window.DetailLog = (() => {
     S().follow = false;
     document.getElementById('dl-follow').checked = false;
     DRender.all();
+  }
+
+  function initLogResize() {
+    const LOG_H_KEY = 'autotest.dlLogHeight';
+    const MIN_H = 72;
+    const split = document.getElementById('dl-log-split');
+    const panel = document.getElementById('dl-log-panel');
+    if (!split || !panel) return;
+
+    function maxH() {
+      const main = panel.parentElement;
+      const mainH = main ? main.clientHeight : 600;
+      return Math.max(MIN_H + 40, Math.floor(mainH * 0.7));
+    }
+
+    function applyH(h) {
+      const clamped = Math.max(MIN_H, Math.min(maxH(), Math.round(h)));
+      panel.style.height = clamped + 'px';
+      return clamped;
+    }
+
+    clampLogHeight = () => {
+      const h = panel.getBoundingClientRect().height || 160;
+      applyH(h);
+    };
+
+    try {
+      const saved = Number(localStorage.getItem(LOG_H_KEY));
+      if (saved > 0) applyH(saved);
+    } catch { /* ignore */ }
+
+    let drag = null;
+
+    split.addEventListener('mousedown', (e) => {
+      if (e.button !== 0) return;
+      e.preventDefault();
+      e.stopPropagation();
+      drag = {
+        startY: e.clientY,
+        startH: panel.getBoundingClientRect().height,
+      };
+      split.classList.add('active');
+      document.body.classList.add('dl-resizing-log');
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!drag) return;
+      // Splitter nam tren panel: keo LEN = log cao hon, keo XUONG = thap hon
+      applyH(drag.startH - (e.clientY - drag.startY));
+    });
+
+    window.addEventListener('mouseup', () => {
+      if (!drag) return;
+      drag = null;
+      split.classList.remove('active');
+      document.body.classList.remove('dl-resizing-log');
+      try {
+        localStorage.setItem(LOG_H_KEY, String(Math.round(panel.getBoundingClientRect().height)));
+      } catch { /* ignore */ }
+    });
+
+    // Khi resize cua so Detail Log / maximize — giu trong gioi han
+    window.addEventListener('resize', () => {
+      const h = panel.getBoundingClientRect().height;
+      if (h > 0) applyH(h);
+    });
   }
 
   function init() {
@@ -441,6 +530,7 @@ window.DetailLog = (() => {
     });
 
     initWindowChrome();
+    initLogResize();
     if (window.DTableResize) DTableResize.init();
     DRender.head();
   }

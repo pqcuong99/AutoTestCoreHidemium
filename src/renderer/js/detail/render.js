@@ -32,15 +32,26 @@ window.DRender = (() => {
 
   function profiles() {
     const box = document.getElementById('dl-profiles');
+    const osLabel = (os) =>
+      window.ProfileOs?.osDisplayLabel?.(os) || String(os || '').trim();
     box.innerHTML = S().order
       .map((uuid) => {
         const r = DStore.get(uuid);
         const active = uuid === S().current ? 'active' : '';
         const lane = r.laneId ? `<span class="lane-id">#${r.laneId}</span>` : '';
         const stText = r.statusText || I18n.statusLabel(r.status);
+        const os = osLabel(r.os);
+        const browser = String(r.browser || '').trim();
+        const metaBits = [];
+        if (browser) metaBits.push(`<span class="prof-tag prof-tag-browser">${esc(browser)}</span>`);
+        if (os) metaBits.push(`<span class="prof-tag prof-tag-os">${esc(os)}</span>`);
+        const meta = metaBits.length
+          ? `<span class="prof-meta">${metaBits.join('')}</span>`
+          : '';
         return `<div class="prof-item ${active}" data-uuid="${esc(uuid)}">
           <span class="st st-${r.status}" title="${esc(stText)}">${esc(stText)}</span>
           <span class="prof-name">${lane}${esc(r.name || t('detail.noName'))}</span>
+          ${meta}
           <span class="prof-uuid">${esc(uuid)}</span>
         </div>`;
       })
@@ -231,10 +242,21 @@ window.DRender = (() => {
     empty.style.display = 'none';
     document.getElementById('dl-cur-name').textContent = r.name || t('detail.noName');
     document.getElementById('dl-cur-uuid').textContent = r.uuid;
+    const osShow =
+      (window.ProfileOs?.osDisplayLabel?.(r.os) || r.os || '').trim() ||
+      (r.open && (r.open.os || r.open.OS || r.open.platform)) ||
+      '';
+    const browserShow = String(r.browser || '').trim();
+    const metaBits = [`lane #${r.laneId ?? '-'}`];
+    if (browserShow) metaBits.push(esc(browserShow));
+    if (osShow) metaBits.push(esc(osShow));
+    if (r.open?.remote_port) metaBits.push(`port ${esc(r.open.remote_port)}`);
     document.getElementById('dl-cur-meta').innerHTML = r.open
-      ? `lane #${r.laneId ?? '-'} &middot; port ${esc(r.open.remote_port)} &middot; os ${esc(r.open.os)}<br>
+      ? `${metaBits.join(' &middot; ')}<br>
          <span class="kv-v">${esc(r.open.profile_path)}</span>`
-      : `lane #${r.laneId ?? '-'}${r.error ? ' &middot; <span class="site-fail">' + esc(r.error) + '</span>' : ''}`;
+      : `${metaBits.join(' &middot; ')}${
+          r.error ? ' &middot; <span class="site-fail">' + esc(r.error) + '</span>' : ''
+        }`;
 
     const keys = S().checkKeys.length ? S().checkKeys : Object.keys(r.rows);
     if (!keys.length) {

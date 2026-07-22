@@ -1,10 +1,11 @@
 /**
- * Platform policy theo OS can test.
+ * Platform policy theo OS (+ browser) can test.
  *
- * Dung: resolve(store.targetOs) → policy { id, supported, skipChecks, skipConfigKeys, matchAliases }
+ * Dung: resolve(store.targetOs, browserId) → policy gom skip OS + skip browser
  * Them OS: tao file <os>.js + dang ky trong POLICIES.
+ * Them browser: khai bao `browsers: { safari: { skipChecks: [...] } }` trong file OS.
  *
- * targetOs=all → khong loc list profile; policy skip rong.
+ * targetOs=all → khong loc list profile; policy skip rong (tru khi browsers.*).
  */
 const all = require('./all');
 const windows = require('./windows');
@@ -18,6 +19,7 @@ const {
   profileMatchesTargetOs,
   osFromConfigMap,
   pickOsFromBrowser,
+  normalizeBrowserId,
 } = require('../profileOs');
 
 /** @type {Record<string, object>} */
@@ -60,29 +62,44 @@ function normalizeOs(id) {
   return DEFAULT_OS;
 }
 
+function mergeUnique(a, b) {
+  return [...new Set([...(a || []), ...(b || [])])];
+}
+
 /**
  * @param {string} [os]
+ * @param {string} [browser] — ten/id: Safari, chrome, "Chrome 136", …
  * @returns {{
  *   id: string,
  *   label: string,
  *   supported: boolean,
  *   reason?: string,
+ *   browser: string,
  *   skipChecks: Set<string>,
  *   skipConfigKeys: Set<string>,
  *   matchAliases: Record<string, string[]>,
  * }}
  */
-function resolve(os) {
+function resolve(os, browser) {
   const id = normalizeOs(os);
   const base = POLICIES[id] || windows;
+  const browserId = normalizeBrowserId(browser);
+  const browserPolicy =
+    (browserId && base.browsers && typeof base.browsers === 'object' && base.browsers[browserId]) ||
+    {};
+
   return {
     id: base.id,
     label: base.label || base.id,
     supported: !!base.supported,
     reason: base.reason || '',
-    skipChecks: new Set(base.skipChecks || []),
-    skipConfigKeys: new Set(base.skipConfigKeys || []),
-    matchAliases: { ...(base.matchAliases || {}) },
+    browser: browserId || '',
+    skipChecks: new Set(mergeUnique(base.skipChecks, browserPolicy.skipChecks)),
+    skipConfigKeys: new Set(mergeUnique(base.skipConfigKeys, browserPolicy.skipConfigKeys)),
+    matchAliases: {
+      ...(base.matchAliases || {}),
+      ...(browserPolicy.matchAliases || {}),
+    },
   };
 }
 
@@ -99,6 +116,8 @@ module.exports = {
   profileMatchesTargetOs,
   osFromConfigMap,
   pickOsFromBrowser,
+  normalizeBrowserId,
   resolve,
   isSupported,
 };
+

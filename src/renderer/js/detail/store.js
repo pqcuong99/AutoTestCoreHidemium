@@ -21,10 +21,12 @@ window.DStore = (() => {
     progress: '',              // set qua t('status.ready') khi reset / apply locale
   };
 
-  function blankRecord(uuid, name) {
+  function blankRecord(uuid, name, meta) {
     return {
       uuid,
       name: name || '',
+      os: (meta && meta.os) || '',
+      browser: (meta && meta.browser) || '',
       laneId: null,
       status: 'idle',          // idle | running | pass | fail | error | stopped
       statusText: '',          // vd 'error open profile'
@@ -46,7 +48,10 @@ window.DStore = (() => {
     state.progress = typeof t === 'function' ? t('status.ready') : '';
     (profiles || []).forEach((p) => {
       state.order.push(p.uuid);
-      state.records.set(p.uuid, blankRecord(p.uuid, p.name));
+      state.records.set(
+        p.uuid,
+        blankRecord(p.uuid, p.name, { os: p.os || '', browser: p.browser || '' })
+      );
     });
     state.current = state.order[0] || null;
   }
@@ -63,14 +68,16 @@ window.DStore = (() => {
     return evt.runId === state.runId;
   }
 
-  function record(uuid, name) {
+  function record(uuid, name, meta) {
     if (!uuid) return null;
     if (!state.records.has(uuid)) {
-      state.records.set(uuid, blankRecord(uuid, name));
+      state.records.set(uuid, blankRecord(uuid, name, meta));
       state.order.push(uuid);
     }
     const r = state.records.get(uuid);
     if (name && !r.name) r.name = name;
+    if (meta?.os && !r.os) r.os = meta.os;
+    if (meta?.browser && !r.browser) r.browser = meta.browser;
     return r;
   }
 

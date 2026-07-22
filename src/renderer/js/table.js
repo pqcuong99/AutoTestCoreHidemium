@@ -82,8 +82,14 @@ window.Table = (() => {
   }
 
   function toggle(row, on) {
-    if (on) State.selected.set(row.uuid, { uuid: row.uuid, name: row.name, os: row.os || '' });
-    else State.selected.delete(row.uuid);
+    if (on) {
+      State.selected.set(row.uuid, {
+        uuid: row.uuid,
+        name: row.name,
+        os: row.os || '',
+        browser: row.browser || '',
+      });
+    } else State.selected.delete(row.uuid);
   }
 
   function init() {
@@ -118,13 +124,20 @@ window.Table = (() => {
     const targetOs =
       (typeof Settings !== 'undefined' && Settings.getTargetOs && Settings.getTargetOs()) ||
       'windows';
-    return Array.from(State.selected.values()).filter((r) => {
-      if (!window.ProfileOs) return true;
-      const os = r.os != null && r.os !== ''
-        ? r.os
-        : State.rows.find((x) => x.uuid === r.uuid)?.os;
-      return window.ProfileOs.profileMatchesTargetOs(os, targetOs);
-    });
+    return Array.from(State.selected.values())
+      .map((r) => {
+        const row = State.rows.find((x) => x.uuid === r.uuid);
+        return {
+          uuid: r.uuid,
+          name: r.name || row?.name || '',
+          os: r.os || row?.os || '',
+          browser: r.browser || row?.browser || '',
+        };
+      })
+      .filter((r) => {
+        if (!window.ProfileOs) return true;
+        return window.ProfileOs.profileMatchesTargetOs(r.os, targetOs);
+      });
   }
 
   function resetStatus() {

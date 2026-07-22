@@ -43,7 +43,14 @@ window.ProfileSource = (() => {
       if (!res.ok) break;
       lastPage = Math.max(1, res.meta?.lastPage || 1);
       for (const r of res.rows || []) {
-        if (wantedSet.has(r.uuid)) found.set(r.uuid, { uuid: r.uuid, name: r.name, os: r.os || '' });
+        if (wantedSet.has(r.uuid)) {
+          found.set(r.uuid, {
+            uuid: r.uuid,
+            name: r.name,
+            os: r.os || '',
+            browser: r.browser || '',
+          });
+        }
       }
       if (found.size === wantedSet.size) break;
       page++;
@@ -96,7 +103,12 @@ window.ProfileSource = (() => {
 
     res.rows.forEach((r) => {
       if (State.selected.has(r.uuid)) {
-        State.selected.set(r.uuid, { uuid: r.uuid, name: r.name, os: r.os || '' });
+        State.selected.set(r.uuid, {
+          uuid: r.uuid,
+          name: r.name,
+          os: r.os || '',
+          browser: r.browser || '',
+        });
       }
     });
 

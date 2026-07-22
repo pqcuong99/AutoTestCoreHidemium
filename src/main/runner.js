@@ -80,7 +80,12 @@ class Runner {
       threads: concurrency,
       checkKeys,
       lanes: manager.snapshot(),
-      profiles: profiles.map((p) => ({ uuid: p.uuid, name: p.name })),
+      profiles: profiles.map((p) => ({
+        uuid: p.uuid,
+        name: p.name,
+        os: p.os || '',
+        browser: p.browser || '',
+      })),
     });
 
     const worker = async (lane) => {

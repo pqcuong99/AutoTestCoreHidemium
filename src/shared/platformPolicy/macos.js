@@ -1,6 +1,8 @@
 /**
  * Policy test fingerprint macOS (Chromium spoof tren Hidemium).
- * Bo sung skipChecks / skipConfigKeys / matchAliases khi can.
+ *
+ * `browsers`: skip / alias them theo browser (gom voi skip OS).
+ * Vi du: mac + safari → skip webgpu.
  */
 module.exports = {
   id: 'macos',
@@ -9,4 +11,16 @@ module.exports = {
   skipChecks: [],
   skipConfigKeys: [],
   matchAliases: {},
+
+  /**
+   * Key: safari | chrome | edge | brave | opera | opera_gx | yandex | firefox
+   * Moi entry co the co skipChecks / skipConfigKeys / matchAliases.
+   */
+  browsers: {
+    safari: {
+      skipChecks: ['webgpu', 'brands', 'platform_version', ],
+      skipConfigKeys: ['hidemium.navigator.device_memory', ],
+    },
+    // opera_gx: { skipChecks: [] },
+  },
 };

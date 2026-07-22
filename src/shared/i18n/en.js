@@ -63,6 +63,7 @@ const I18N_EN = {
   'detail.empty': 'No data yet. Tick profiles then click Run.',
   'detail.emptyTest': '"Test lanes" mode checks no items — see log below.',
   'detail.logHead': 'Log for this profile',
+  'detail.logResize': 'Drag to resize log height',
   'detail.colCheck': 'Check item',
   'detail.colConfig': 'Config (config.hidemium)',
   'detail.idle': 'idle',
