@@ -13,27 +13,6 @@ const {
 const DEFAULT_BASE = 'http://127.0.0.1:2222';
 const DEFAULT_TIMEOUT = 120000;
 
-/** Trich ten browser tu object list API (string hoac nested). */
-function pickBrowserFromBrowser(b) {
-  if (!b || typeof b !== 'object') return '';
-  const candidates = [];
-  // Uu tien field browser thuan (chrome / chromium / edge / ...)
-  if (typeof b.browser === 'string') candidates.push(b.browser);
-  else if (b.browser && typeof b.browser === 'object') {
-    candidates.push(b.browser.name, b.browser.type, b.browser.browser, b.browser.key);
-  }
-  candidates.push(b.browser_name, b.browserName);
-
-  for (const c of candidates) {
-    const s = String(c == null ? '' : c).trim();
-    // Bo browser_type kieu hidemium_v2 — khong dung de chon logo
-    if (!s || s === '[object Object]') continue;
-    if (/^hidemium/i.test(s)) continue;
-    return s;
-  }
-  return '';
-}
-
 function attachAbort(req, signal) {
   if (!signal) return;
   if (signal.aborted) {

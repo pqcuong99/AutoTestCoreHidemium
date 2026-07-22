@@ -177,21 +177,37 @@ const FIELD_OVERRIDE = {
     css: "#js-maxTouchPoints"
   },
   "hidemium.chrome.version": {
-    match: "includes",
-    css: "#js-uadata-uaFullVersion"
+    js: "function getBrowserVersion() {\n    const ua = document.getElementById(\"js-userAgent\").textContent.trim();\n\n    const patterns = [\n        /Edg\\/([\\d.]+)/,         // Edge\n        /Chrome\\/([\\d.]+)/,      // Chrome\n        /Version\\/([\\d.]+).*Safari/, // Safari\n        /Safari\\/([\\d.]+)/       // Safari WebKit (fallback)\n    ];\n\n    for (const pattern of patterns) {\n        const match = ua.match(pattern);\n        if (match) {\n            return match[1];\n        }\n    }\n\n    return null;\n}"
   },
   "hidemium.navigator.useragent.version_useragent": {
     match: "includes",
-    css: "#js-uadata-fullVersionList"
+    sel: [
+      {
+        css: "#js-uadata-fullVersionList"
+      },
+      {
+        js: "function getBrowserVersion() {\n    const ua = document.getElementById(\"js-userAgent\").textContent.trim();\n\n    const patterns = [\n        /Edg\\/([\\d.]+)/,         // Edge\n        /Chrome\\/([\\d.]+)/,      // Chrome\n        /Version\\/([\\d.]+).*Safari/, // Safari\n        /Safari\\/([\\d.]+)/       // Safari WebKit (fallback)\n    ];\n\n    for (const pattern of patterns) {\n        const match = ua.match(pattern);\n        if (match) {\n            return match[1];\n        }\n    }\n\n    return null;\n}"
+      }
+    ],
+    selMode: "first"
   },
   "hidemium.navigator.os.platform_os": {
-    css: "#js-uadata-platform"
+    sel: [
+      {
+        css: "#js-uadata-platform"
+      },
+      {
+        css: "#js-platform"
+      }
+    ],
+    selMode: "first"
   },
   "hidemium.navigator.os.platforms_version": {
     css: "#js-uadata-platformVersion"
   },
   "hidemium.navigator.useragent.fullversion": {
-    css: "#js-uadata-uaFullVersion"
+    css: "#js-uadata-uaFullVersion",
+    selMode: "merge"
   },
   "hidemium.navigator.useragent.useragent": {
     css: "#js-userAgent"
@@ -291,7 +307,16 @@ const FIELD_OVERRIDE = {
   },
   "hidemium.fonts": {
     match: "includes",
-    css: "#fonts-metrics-hash"
+    js: "function getFontsMetricsHash() {\n    return document\n        .getElementById(\"fonts-metrics-hash\")\n        .childNodes[1]\n        .textContent\n        .trim();\n}"
+  },
+  "hidemium.fontface": {
+    skip: true
+  },
+  "hidemium.fontsfaceset": {
+    skip: true
+  },
+  "hidemium.fonts_value": {
+    skip: true
   },
   "hidemium.webgl.report_hash": {
     label: "report hash",

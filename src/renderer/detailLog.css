@@ -212,6 +212,56 @@ body.dl-win-resizing * { user-select: none !important; }
 .dl-tbl tbody tr:hover { background: var(--row-hover); }
 .dl-tbl td.cell-a { position: relative; }
 
+/* Hang text dai: thu nho / mo rong — ep HEIGHT hang, khong chi clip chu */
+.dl-row-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 6px 0 0;
+  padding: 0 5px;
+  min-width: 22px;
+  height: 20px;
+  border: 1px solid #475569;
+  border-radius: 4px;
+  background: #1e293b;
+  color: #93c5fd;
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+  vertical-align: middle;
+}
+.dl-row-toggle:hover {
+  border-color: #60a5fa;
+  color: #bfdbfe;
+  background: #243447;
+}
+.dl-cell-clip {
+  max-height: none;
+  overflow: visible;
+}
+/* Thu nho = giam HEIGHT hang (JS ~44px), khong chi overflow cat chu */
+tr.dl-row-collapsed {
+  height: 44px !important;
+  max-height: 44px !important;
+}
+tr.dl-row-collapsed > td {
+  height: 44px !important;
+  max-height: 44px !important;
+  overflow: hidden !important;
+  vertical-align: middle !important;
+  padding-top: 6px !important;
+  padding-bottom: 6px !important;
+}
+tr.dl-row-collapsed > td > .dl-cell-clip {
+  max-height: 32px !important;
+  overflow: hidden !important;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  word-break: break-word;
+}
+
 /* ---------- Resize cot / hang ---------- */
 .dl-col-resizer {
   position: absolute;
@@ -272,8 +322,37 @@ body.dl-resizing-row * { cursor: row-resize !important; user-select: none !impor
   word-break: break-word;
   overflow-wrap: anywhere;
 }
-.kv-more { color: #60a5fa; cursor: pointer; font-size: 11px; }
-[data-theme="light"] .kv-more { color: #2563eb; }
+.kv-more,
+.kv-less {
+  color: #60a5fa;
+  cursor: pointer;
+  font-size: 11px;
+  margin-top: 4px;
+  user-select: none;
+}
+.kv-more:hover,
+.kv-less:hover { text-decoration: underline; }
+[data-theme="light"] .kv-more,
+[data-theme="light"] .kv-less { color: #2563eb; }
+
+/* Thu gon: cat text dai (font list / features) — khong de hang bung cao */
+.dl-kv-block.is-collapsed .kv-v,
+.dl-kv-block.is-collapsed .site-cell-plain {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  max-width: 100%;
+}
+.dl-kv-block.is-expanded .kv-v,
+.dl-kv-block.is-expanded .site-cell-plain {
+  -webkit-line-clamp: unset;
+  line-clamp: unset;
+  display: block;
+  overflow: visible;
+}
+
 .cell-missing { color: var(--muted); font-style: italic; }
 
 .site-cell {

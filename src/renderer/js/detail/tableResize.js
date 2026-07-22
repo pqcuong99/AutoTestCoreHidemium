@@ -7,6 +7,8 @@ window.DTableResize = (() => {
   const ROW_LS = 'dl-row-heights';
   const MIN_COL = 80;
   const MIN_ROW = 36;
+  /** Chieu cao hang khi bam thu nho (text dai). */
+  const COLLAPSED_ROW = 44;
 
   /** @type {Record<string, number>} */
   let colWidths = load(COL_LS);
@@ -66,21 +68,14 @@ window.DTableResize = (() => {
     updateTableMinWidth();
   }
 
-  /** Gan handle + ap dung height da luu sau khi ve tbody */
-  function applyRows() {
-    document.querySelectorAll('#dl-tbody tr[data-key]').forEach((tr) => {
-      const key = tr.dataset.key;
-      const h = rowHeights[key];
-      if (h) setRowHeight(tr, h);
-
-      const cell = tr.querySelector('td.cell-a');
-      if (cell && !cell.querySelector('.dl-row-resizer')) {
-        const handle = document.createElement('span');
-        handle.className = 'dl-row-resizer';
-        handle.title = 'Kéo để đổi chiều cao hàng';
-        handle.addEventListener('mousedown', (e) => startRowDrag(e, tr, key));
-        cell.appendChild(handle);
-      }
+  function clearRowHeight(tr) {
+    if (!tr) return;
+    tr.style.height = '';
+    tr.classList.remove('dl-row-resized');
+    tr.querySelectorAll('td').forEach((td) => {
+      td.style.maxHeight = '';
+      td.style.height = '';
+      td.style.overflow = '';
     });
   }
 
@@ -91,6 +86,49 @@ window.DTableResize = (() => {
       td.style.maxHeight = h + 'px';
       td.style.height = h + 'px';
       td.style.overflow = 'auto';
+    });
+  }
+
+  /** Thu nho / mo rong hang text dai — ep height that (khong chi clip chu). */
+  function setCollapsed(tr, collapsed) {
+    if (!tr) return;
+    const key = tr.dataset.key;
+    if (collapsed) {
+      tr.classList.add('dl-row-collapsed');
+      setRowHeight(tr, COLLAPSED_ROW);
+      tr.querySelectorAll('td').forEach((td) => {
+        td.style.overflow = 'hidden';
+      });
+    } else {
+      tr.classList.remove('dl-row-collapsed');
+      clearRowHeight(tr);
+      const saved = key && rowHeights[key];
+      if (saved) setRowHeight(tr, saved);
+    }
+  }
+
+  /** Gan handle + ap dung height da luu sau khi ve tbody */
+  function applyRows() {
+    document.querySelectorAll('#dl-tbody tr[data-key]').forEach((tr) => {
+      const key = tr.dataset.key;
+
+      // Hang dang thu nho: luon ep height nho — khong ap height cu tu localStorage
+      if (tr.classList.contains('dl-row-collapsed')) {
+        setCollapsed(tr, true);
+      } else {
+        const h = rowHeights[key];
+        if (h) setRowHeight(tr, h);
+        else clearRowHeight(tr);
+      }
+
+      const cell = tr.querySelector('td.cell-a');
+      if (cell && !cell.querySelector('.dl-row-resizer')) {
+        const handle = document.createElement('span');
+        handle.className = 'dl-row-resizer';
+        handle.title = 'Kéo để đổi chiều cao hàng';
+        handle.addEventListener('mousedown', (e) => startRowDrag(e, tr, key));
+        cell.appendChild(handle);
+      }
     });
   }
 
@@ -107,6 +145,16 @@ window.DTableResize = (() => {
   function startRowDrag(e, tr, key) {
     e.preventDefault();
     e.stopPropagation();
+    // Keo resize = mo rong hang (bo che do thu nho)
+    if (tr.classList.contains('dl-row-collapsed')) {
+      tr.classList.remove('dl-row-collapsed');
+      const btn = tr.querySelector('.dl-row-toggle');
+      if (btn) {
+        btn.textContent = '▴';
+        btn.setAttribute('aria-expanded', 'true');
+      }
+      clearRowHeight(tr);
+    }
     const startY = e.clientY;
     const startH = tr.getBoundingClientRect().height;
     dragging = { type: 'row', key, tr, startY, startH };
@@ -155,5 +203,15 @@ window.DTableResize = (() => {
     document.addEventListener('mouseup', onUp);
   }
 
-  return { init, apply, applyColumns, applyRows };
+  return {
+    init,
+    apply,
+    applyColumns,
+    applyRows,
+    setCollapsed,
+    setRowHeight,
+    clearRowHeight,
+    COLLAPSED_ROW,
+  };
 })();
+

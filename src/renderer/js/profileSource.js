@@ -8,9 +8,15 @@
  * Tab dang chon duoc luu vao config (sourceMode) -> mo app lan sau vao dung tab cu.
  * Khi reload / mo app: quet toan bo trang de bo tick UUID da bi xoa ben Hidemium
  * (tranh bam Chay van mo profile chet -> loi "mo profile" tren Detail Log).
+ *
+ * Phan trang UI: fetch het API pages -> loc theo targetOs (+ search) -> slice PAGE_SIZE.
+ * Tranh trang API toan Win chi con 1-2 Mac sau khi loc OS.
  */
 window.ProfileSource = (() => {
   let loading = false;
+
+  /** So profile moi trang UI (sau khi loc OS). */
+  const PAGE_SIZE = 20;
 
   const LABEL = { cloud: 'Cloud', local: 'Local' };
 
@@ -25,6 +31,72 @@ window.ProfileSource = (() => {
     if (on) $('#source-info').textContent = t('log.loading');
   }
 
+  function currentTargetOs() {
+    return (
+      (typeof Settings !== 'undefined' && Settings.getTargetOs && Settings.getTargetOs()) ||
+      'windows'
+    );
+  }
+
+  function filterByOs(rows) {
+    const targetOs = currentTargetOs();
+    if (!window.ProfileOs || targetOs === 'all') return rows;
+    return rows.filter((r) => window.ProfileOs.profileMatchesTargetOs(r.os, targetOs));
+  }
+
+  function filterBySearch(rows) {
+    const q = String(State.filter || '')
+      .trim()
+      .toLowerCase();
+    if (!q) return rows;
+    return rows.filter(
+      (r) => r.uuid.toLowerCase().includes(q) || (r.name || '').toLowerCase().includes(q)
+    );
+  }
+
+  /**
+   * Loc allRows theo OS + search, roi slice trang UI.
+   * @param {number} [page]
+   */
+  function applyView(page = State.page || 1) {
+    const filtered = filterBySearch(filterByOs(State.allRows || []));
+    const lastPage = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE) || 1);
+    const p = Math.min(Math.max(1, Number(page) || 1), lastPage);
+    const start = (p - 1) * PAGE_SIZE;
+    State.rows = filtered.slice(start, start + PAGE_SIZE);
+    State.page = p;
+    State.meta = {
+      currentPage: p,
+      lastPage,
+      perPage: PAGE_SIZE,
+      total: filtered.length,
+    };
+  }
+
+  /**
+   * Tai toan bo trang API (limit do Hidemium khoa 10/15).
+   * @returns {{ ok:boolean, rows?:Array, error?:string, source?:string }}
+   */
+  async function fetchAllRows(source) {
+    const all = [];
+    let page = 1;
+    let lastPage = 1;
+    let mode = source;
+
+    while (page <= lastPage) {
+      const res = await window.api.profiles.list({ source, page });
+      if (!res.ok) {
+        return { ok: false, error: res.error, source: res.source || source };
+      }
+      mode = res.source || source;
+      lastPage = Math.max(1, res.meta?.lastPage || 1);
+      for (const r of res.rows || []) all.push(r);
+      page++;
+    }
+
+    return { ok: true, rows: all, source: mode };
+  }
+
   /**
    * Doi chieu State.selected voi danh sach that tu API (moi trang).
    * @returns {number} so tick da bo vi khong con ton tai
@@ -33,28 +105,22 @@ window.ProfileSource = (() => {
     const wanted = Array.from(State.selected.keys());
     if (!wanted.length) return 0;
 
-    const wantedSet = new Set(wanted);
-    const found = new Map(); // uuid -> { uuid, name }
-    let page = 1;
-    let lastPage = 1;
+    const pool = State.allRows?.length
+      ? State.allRows
+      : (await fetchAllRows(source)).rows || [];
 
-    while (page <= lastPage) {
-      const res = await window.api.profiles.list({ source, page });
-      if (!res.ok) break;
-      lastPage = Math.max(1, res.meta?.lastPage || 1);
-      for (const r of res.rows || []) {
-        if (wantedSet.has(r.uuid)) {
-          found.set(r.uuid, {
-            uuid: r.uuid,
-            name: r.name,
-            os: r.os || '',
-            browser: r.browser || '',
-            coreVersion: r.coreVersion || '',
-          });
-        }
+    const found = new Map();
+    const wantedSet = new Set(wanted);
+    for (const r of pool) {
+      if (wantedSet.has(r.uuid)) {
+        found.set(r.uuid, {
+          uuid: r.uuid,
+          name: r.name,
+          os: r.os || '',
+          browser: r.browser || '',
+          coreVersion: r.coreVersion || '',
+        });
       }
-      if (found.size === wantedSet.size) break;
-      page++;
     }
 
     let removed = 0;
@@ -74,7 +140,23 @@ window.ProfileSource = (() => {
   }
 
   /**
-   * Tai 1 trang profile.
+   * Chi cap nhat slice trang (khong fetch lai API) — dung khi doi OS / search.
+   */
+  function refreshView({ page = 1 } = {}) {
+    applyView(page);
+    Table.pruneSelectionByTargetOs?.();
+    Table.render();
+    Table.updateCount();
+    renderPager();
+    $('#source-info').textContent = t('log.loadedInfo', {
+      total: State.meta.total,
+      page: State.meta.currentPage,
+      last: State.meta.lastPage,
+    });
+  }
+
+  /**
+   * Tai danh sach profile (fetch het API) roi hien 1 trang UI.
    * @param {{source?:string, page?:number, silent?:boolean, pruneSelection?:boolean}} opts
    *   pruneSelection: true khi reload / bootstrap — bo tick profile da xoa
    */
@@ -82,12 +164,13 @@ window.ProfileSource = (() => {
     if (loading || State.running) return false;
     setLoading(true);
 
-    const res = await window.api.profiles.list({ source, page });
+    const res = await fetchAllRows(source);
 
     if (!res.ok) {
       setLoading(false);
+      State.allRows = [];
       State.rows = [];
-      State.meta = { currentPage: 1, lastPage: 1, total: 0 };
+      State.meta = { currentPage: 1, lastPage: 1, total: 0, perPage: PAGE_SIZE };
       $('#source-info').textContent = t('log.loadFailInfo', { source: LABEL[source] });
       Table.render();
       renderPager();
@@ -96,13 +179,13 @@ window.ProfileSource = (() => {
     }
 
     State.source = res.source;
-    State.page = res.meta.currentPage;
-    State.meta = res.meta;
-    State.rows = res.rows;
+    State.allRows = res.rows;
+    applyView(page);
+
     State.status = {};
     State.statusText = {};
 
-    res.rows.forEach((r) => {
+    State.rows.forEach((r) => {
       if (State.selected.has(r.uuid)) {
         State.selected.set(r.uuid, {
           uuid: r.uuid,
@@ -119,13 +202,15 @@ window.ProfileSource = (() => {
       pruned = await pruneMissingSelections(State.source);
     }
     Table.pruneSelectionByTargetOs?.();
+    // prune co the doi selected; slice lai neu can
+    applyView(State.page);
 
     setLoading(false);
     setTabs(State.source);
     $('#source-info').textContent = t('log.loadedInfo', {
-      total: res.meta.total,
-      page: res.meta.currentPage,
-      last: res.meta.lastPage,
+      total: State.meta.total,
+      page: State.meta.currentPage,
+      last: State.meta.lastPage,
     });
 
     Table.render();
@@ -134,10 +219,10 @@ window.ProfileSource = (() => {
     if (!silent) {
       logLine(
         t('log.loaded', {
-          n: res.rows.length,
+          n: State.rows.length,
           source: LABEL[State.source],
-          page: res.meta.currentPage,
-          last: res.meta.lastPage,
+          page: State.meta.currentPage,
+          last: State.meta.lastPage,
         }),
         'ok'
       );
@@ -211,9 +296,28 @@ window.ProfileSource = (() => {
       const btn = e.target.closest('.pg');
       if (!btn || btn.disabled) return;
       const page = Number(btn.dataset.page);
-      if (page && page !== State.meta.currentPage) load({ page });
+      if (!page || page === State.meta.currentPage) return;
+      // Da co allRows — chi slice lai, khong fetch API
+      applyView(page);
+      Table.render();
+      Table.updateCount();
+      renderPager();
+      $('#source-info').textContent = t('log.loadedInfo', {
+        total: State.meta.total,
+        page: State.meta.currentPage,
+        last: State.meta.lastPage,
+      });
     });
   }
 
-  return { init, load, setTabs, renderPager, pruneMissingSelections, unselect };
+  return {
+    init,
+    load,
+    setTabs,
+    renderPager,
+    pruneMissingSelections,
+    unselect,
+    refreshView,
+    PAGE_SIZE,
+  };
 })();

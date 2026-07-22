@@ -187,7 +187,10 @@ window.Settings = (() => {
       const os = getTargetOs();
       cfg.targetOs = os;
       window.api.config.set({ targetOs: os });
-      if (typeof Table !== 'undefined') {
+      // Loc lai allRows theo OS moi + phan trang client (tranh trang chi con 1-2 dong)
+      if (typeof ProfileSource !== 'undefined' && ProfileSource.refreshView) {
+        ProfileSource.refreshView({ page: 1 });
+      } else if (typeof Table !== 'undefined') {
         Table.pruneSelectionByTargetOs?.();
         Table.render();
         Table.updateCount?.();

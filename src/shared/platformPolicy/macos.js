@@ -8,7 +8,7 @@ module.exports = {
   id: 'macos',
   label: 'macOS',
   supported: true,
-  skipChecks: [],
+  skipChecks: ['mac_address', 'desktop_name'],
   skipConfigKeys: [],
   matchAliases: {},
 
@@ -18,7 +18,7 @@ module.exports = {
    */
   browsers: {
     safari: {
-      skipChecks: ['webgpu', 'brands', 'platform_version', ],
+      skipChecks: ['webgpu'],
       skipConfigKeys: ['hidemium.navigator.device_memory', ],
     },
     // opera_gx: { skipChecks: [] },

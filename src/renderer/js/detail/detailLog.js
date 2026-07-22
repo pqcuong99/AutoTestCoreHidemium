@@ -503,29 +503,23 @@ window.DetailLog = (() => {
       if (e.key === 'Escape' && isOpen) close();
     });
 
-    // Bam "+ N truong nua..." -> xo het field (cot Config hoac cot site)
+    // Bam "+ N more lines" / "Show less" trong o Config / site
     document.getElementById('dl-tbody').addEventListener('click', (e) => {
-      if (!e.target.classList.contains('kv-more')) return;
+      const more = e.target.closest('.kv-more');
+      const less = e.target.closest('.kv-less');
+      if (!more && !less) return;
+      const expanded = !!more;
       const tr = e.target.closest('tr');
       const td = e.target.closest('td');
       const row = DStore.current()?.rows?.[tr?.dataset.key];
       if (!row || !td) return;
+      const clip = td.querySelector('.dl-cell-clip') || td;
       if (td.classList.contains('cell-b')) {
-        td.innerHTML = DRender.fieldsHtmlAll(row.config);
+        clip.innerHTML = DRender.fieldsHtml(row.config, { expanded });
         return;
       }
       if (td.classList.contains('cell-site') && td.dataset.site) {
-        const site = row.sites?.[td.dataset.site];
-        const fields =
-          site?.fields?.length
-            ? site.fields
-            : site?.lines?.length
-              ? site.lines
-              : null;
-        if (fields) {
-          const cls = { pass: 'site-pass', fail: 'site-fail' }[site.state] || '';
-          td.innerHTML = `<div class="site-cell site-kv ${cls}">${DRender.fieldsHtmlAll(fields)}</div>`;
-        }
+        clip.innerHTML = DRender.siteCell(row.sites?.[td.dataset.site], { expanded });
       }
     });
 

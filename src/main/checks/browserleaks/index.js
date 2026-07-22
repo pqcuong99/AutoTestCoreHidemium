@@ -302,6 +302,27 @@ async function scrapePage(page, checkKeys, configMap, step, platform) {
         continue;
       }
 
+      // Brands / Font: chi hien thi tren BL (hash / brandlist), khong fail mismatch vs config list.
+      if (checkKey === 'brands' || checkKey === 'font') {
+        out[checkKey].push({
+          label: field.label,
+          configKey: exp?.key || field.configKey,
+          expected,
+          actual,
+          pass: true,
+          skipped: true,
+          infoOnly: true,
+          detail: actual
+            ? `${field.label}: ${actual} (display only)`
+            : `${field.label}: empty on page`,
+        });
+        step(
+          `BrowserLeaks [${checkKey}/${field.label}]: SHOW — ${actual || '(empty)'} (no compare)`,
+          'ok'
+        );
+        continue;
+      }
+
       const cmp = compareOne(field, expected, actual);
 
       out[checkKey].push({
@@ -474,10 +495,11 @@ async function run(checkKeys, ctx) {
   if (signal?.aborted) throw new Error('aborted');
 
   const platform = ctx.platform || resolvePlatform(ctx.targetOs || 'windows');
-  const skipChecks =
-    platform.skipChecks && platform.skipChecks.size
-      ? platform.skipChecks
-      : SKIP_CHECKS || new Set();
+  // Gop SKIP_CHECKS (recipe site) + policy OS.
+  const skipChecks = new Set([
+    ...(SKIP_CHECKS || []),
+    ...(platform.skipChecks || []),
+  ]);
 
   const policyTag = platform.browser
     ? `${platform.id}/${platform.browser}`

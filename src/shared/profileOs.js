@@ -27,7 +27,8 @@
     if (!s) return '';
     if (/win|windows|win32|win64/.test(s)) return 'windows';
     if (/mac|macos|macintosh|macintel|darwin|osx/.test(s)) return 'macos';
-    if (/linux|ubuntu|debian|fedora|centos|x11/.test(s)) return 'linux';
+    // Hidemium list thuong tra "lin" (khong phai "linux").
+    if (s === 'lin' || /linux|ubuntu|debian|fedora|centos|x11/.test(s)) return 'linux';
     if (/ios|iphone|ipad/.test(s)) return 'ios';
     if (/android/.test(s)) return 'android';
     return '';
@@ -43,8 +44,9 @@
   function profileMatchesTargetOs(profileOs, targetOs, opts) {
     const target = normalizeOsId(targetOs);
     if (!target || target === 'all') return true;
-    const profile = normalizeProfileOs(profileOs);
-    if (!profile) return !(opts && opts.requireKnown);
+    // Dong bo voi osDisplayLabel: profileOs truoc, fallback normalizeOsId (vd "lin").
+    const profile = normalizeProfileOs(profileOs) || normalizeOsId(profileOs);
+    if (!profile || profile === 'all') return !(opts && opts.requireKnown);
     return profile === target;
   }
 
@@ -110,9 +112,11 @@
     if (/opera|opr/.test(s)) return 'opera';
     if (/yandex/.test(s)) return 'yandex';
     if (/firefox|fx/.test(s)) return 'firefox';
-    if (/chrome|chromium|hidemium/.test(s)) return 'chrome';
+    // Default (Hidemium) = Chromium engine — id rieng, khong map thanh chrome.
+    if (/^default$/.test(s) || /chromium/.test(s)) return 'chromium';
+    if (/chrome|hidemium/.test(s)) return 'chrome';
     if (
-      /^(chrome|safari|edge|brave|opera|opera_gx|yandex|firefox)$/.test(
+      /^(chrome|chromium|safari|edge|brave|opera|opera_gx|yandex|firefox)$/.test(
         s.replace(/\s+/g, '_')
       )
     ) {
@@ -121,9 +125,10 @@
     return '';
   }
 
-  /** Chuan hoa ten browser: chrome -> Chrome. */
+  /** Chuan hoa ten browser: chrome -> Chrome, default/chromium -> Chromium. */
   function normalizeBrowserName(raw) {
     const id = normalizeBrowserId(raw);
+    if (id === 'chromium') return 'Chromium';
     if (id === 'chrome') return 'Chrome';
     if (id === 'edge') return 'Edge';
     if (id === 'brave') return 'Brave';
@@ -206,7 +211,10 @@
     const version =
       String(map['hidemium.chrome.version'] || map['hidemium.navigator.useragent.version_useragent'] || '')
         .trim() || '';
+    // Nguon chinh: product_name (Chrome / Safari / Opera GX / …).
+    const productName = String(map['hidemium.navigator.product_name'] || '').trim();
     const brands = String(map['hidemium.navigator.useragent.brands'] || '').toLowerCase();
+    const ua = String(map['hidemium.navigator.useragent.useragent'] || '').toLowerCase();
     const soft = String(
       map['hidemium.browser'] ||
         map['hidemium.browser_type'] ||
@@ -214,22 +222,34 @@
         map['hidemium.soft'] ||
         ''
     ).toLowerCase();
-    let name = '';
-    // Soft / brands: uu tien safari truoc chrome (spoof Mac thuong van co chrome version).
-    if (/safari/.test(soft) || (/safari/.test(brands) && !/chrom/i.test(brands))) name = 'Safari';
-    else if (/edge/.test(soft) || /edge/.test(brands)) name = 'Edge';
-    else if (/brave/.test(soft) || /brave/.test(brands)) name = 'Brave';
-    else if (/opera\s*gx|operagx/.test(soft) || /opera\s*gx|operagx/.test(brands))
-      name = 'Opera GX';
-    else if (/opera/.test(soft) || /opera/.test(brands)) name = 'Opera';
-    else if (/firefox/.test(soft) || /firefox/.test(brands)) name = 'Firefox';
-    else if (
-      /chrome|chromium|hidemium/.test(soft) ||
-      /chrome|chromium|hidemium|version/.test(brands) ||
-      version
-    ) {
-      name = 'Chrome';
+
+    let name = normalizeBrowserName(productName);
+
+    // Fallback khi thieu product_name: UA → soft/brands → chrome.version.
+    if (!name && ua) {
+      if (/edg\//.test(ua)) name = 'Edge';
+      else if (/opr\/|opera/.test(ua) && /gx/.test(ua + soft)) name = 'Opera GX';
+      else if (/opr\/|opera/.test(ua)) name = 'Opera';
+      else if (/firefox\//.test(ua)) name = 'Firefox';
+      else if (/brave/.test(ua)) name = 'Brave';
+      else if (/chromium/.test(ua) && !/chrome\//.test(ua)) name = 'Chromium';
+      else if (/chrome\/|crios\//.test(ua)) name = 'Chrome';
+      else if (/safari\//.test(ua) && !/chrome|chromium|crios/.test(ua)) name = 'Safari';
     }
+    if (!name) {
+      if (/safari/.test(soft) || (/safari/.test(brands) && !/chrom/.test(brands))) name = 'Safari';
+      else if (/edge/.test(soft) || /edge/.test(brands)) name = 'Edge';
+      else if (/brave/.test(soft) || /brave/.test(brands)) name = 'Brave';
+      else if (/opera\s*gx|operagx/.test(soft) || /opera\s*gx|operagx/.test(brands))
+        name = 'Opera GX';
+      else if (/opera/.test(soft) || /opera/.test(brands)) name = 'Opera';
+      else if (/firefox/.test(soft) || /firefox/.test(brands)) name = 'Firefox';
+      else if (/chromium|hidemium|^default$/.test(soft) || /chromium/.test(brands))
+        name = 'Chromium';
+      else if (/chrome/.test(soft) || /chrome/.test(brands)) name = 'Chrome';
+    }
+    if (!name && version) name = 'Chrome';
+
     return formatBrowserLabel(name, version);
   }
 

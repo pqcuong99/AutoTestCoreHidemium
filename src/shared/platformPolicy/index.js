@@ -84,8 +84,13 @@ function resolve(os, browser) {
   const id = normalizeOs(os);
   const base = POLICIES[id] || windows;
   const browserId = normalizeBrowserId(browser);
+  // chromium (Default Hidemium) dung chung policy chrome neu co.
+  const policyBrowserId = browserId === 'chromium' ? 'chrome' : browserId;
   const browserPolicy =
-    (browserId && base.browsers && typeof base.browsers === 'object' && base.browsers[browserId]) ||
+    (policyBrowserId &&
+      base.browsers &&
+      typeof base.browsers === 'object' &&
+      base.browsers[policyBrowserId]) ||
     {};
 
   return {
