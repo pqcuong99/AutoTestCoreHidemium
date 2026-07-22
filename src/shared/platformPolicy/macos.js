@@ -2,7 +2,7 @@
  * Policy test fingerprint macOS (Chromium spoof tren Hidemium).
  *
  * `browsers`: skip / alias them theo browser (gom voi skip OS).
- * Vi du: mac + safari → skip webgpu.
+ * Vi du: mac + safari → skip webgpu / client hints.
  */
 module.exports = {
   id: 'macos',
@@ -18,8 +18,16 @@ module.exports = {
    */
   browsers: {
     safari: {
-      skipChecks: ['webgpu'],
-      skipConfigKeys: ['hidemium.navigator.device_memory', ],
+      skipChecks: [
+        'webgpu',
+        'brands',
+        'platform_version',
+        'ua_full_version',
+        'model',
+        'full_version_list',
+        'form_factors',
+      ],
+      skipConfigKeys: ['hidemium.navigator.device_memory'],
     },
     // opera_gx: { skipChecks: [] },
   },
