@@ -35,11 +35,14 @@ window.Settings = (() => {
     const sel = $('#sel-target-os');
     if (!sel) return;
     const cur = cfg.targetOs || 'windows';
+    // Phai khop supported trong platformPolicy/<os>.js (renderer khong require duoc policy).
     const opts = [
+      { id: 'all', label: t('os.all'), supported: true },
       { id: 'windows', label: t('os.windows'), supported: true },
-      { id: 'macos', label: t('os.macos'), supported: false },
-      { id: 'ios', label: t('os.ios'), supported: false },
-      { id: 'android', label: t('os.android'), supported: false },
+      { id: 'macos', label: t('os.macos'), supported: true },
+      { id: 'linux', label: t('os.linux'), supported: true },
+      { id: 'ios', label: t('os.ios'), supported: true },
+      { id: 'android', label: t('os.android'), supported: true },
     ];
     sel.innerHTML = opts
       .map(
@@ -118,6 +121,11 @@ window.Settings = (() => {
       const os = getTargetOs();
       cfg.targetOs = os;
       window.api.config.set({ targetOs: os });
+      if (typeof Table !== 'undefined') {
+        Table.pruneSelectionByTargetOs?.();
+        Table.render();
+        Table.updateCount?.();
+      }
     });
 
     $('#chk-auto-close').addEventListener('change', () => {
