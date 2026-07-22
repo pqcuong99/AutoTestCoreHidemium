@@ -1,12 +1,11 @@
 /**
- * Stub — chua implement policy macOS.
- * Bo sung skipChecks / skipConfigKeys / matchAliases khi lam test Mac.
+ * Policy test fingerprint macOS (Chromium spoof tren Hidemium).
+ * Bo sung skipChecks / skipConfigKeys / matchAliases khi can.
  */
 module.exports = {
   id: 'macos',
   label: 'macOS',
-  supported: false,
-  reason: 'macOS test policy chua implement — chon Windows hoac bo sung macos.js',
+  supported: true,
   skipChecks: [],
   skipConfigKeys: [],
   matchAliases: {},

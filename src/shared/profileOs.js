@@ -12,12 +12,13 @@
     if (raw === 'all') return 'all';
     if (/^(win|windows|win32|win64)$/.test(raw)) return 'windows';
     if (/^(mac|macos|macintosh|macintel|darwin|osx)$/.test(raw)) return 'macos';
+    if (/^(linux|lin|ubuntu|debian|fedora|centos|x11)$/.test(raw)) return 'linux';
     if (/^(ios|iphone|ipad)$/.test(raw)) return 'ios';
     if (/^android$/.test(raw)) return 'android';
     return raw;
   }
 
-  /** OS tu Hidemium list/openProfile/config → windows|macos|ios|android|'' */
+  /** OS tu Hidemium list/openProfile/config → windows|macos|linux|ios|android|'' */
   function normalizeProfileOs(raw) {
     const s = String(raw || '')
       .trim()
@@ -26,6 +27,7 @@
     if (!s) return '';
     if (/win|windows|win32|win64/.test(s)) return 'windows';
     if (/mac|macos|macintosh|macintel|darwin|osx/.test(s)) return 'macos';
+    if (/linux|ubuntu|debian|fedora|centos|x11/.test(s)) return 'linux';
     if (/ios|iphone|ipad/.test(s)) return 'ios';
     if (/android/.test(s)) return 'android';
     return '';

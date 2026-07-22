@@ -1,5 +1,5 @@
 /**
- * Policy test theo OS target (windows | macos | ios | android).
+ * Policy test theo OS target (windows | macos | linux | ios | android).
  * Recipes DOM dung chung; chi khac skipChecks / skipConfigKeys / matchAliases.
  */
 module.exports = {

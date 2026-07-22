@@ -1,11 +1,11 @@
 /**
- * Policy test fingerprint iOS (Chromium spoof tren Hidemium).
+ * Policy test fingerprint Linux (Chromium spoof tren Hidemium).
  */
 module.exports = {
-  id: 'ios',
-  label: 'iOS',
+  id: 'linux',
+  label: 'Linux',
   supported: true,
-  skipChecks: ['mac_address', 'desktop_name', 'font'],
+  skipChecks: ['mac_address', 'desktop_name'],
   skipConfigKeys: [
     'hidemium.navigator.physical_memory',
     'hidemium.webgl.mode',

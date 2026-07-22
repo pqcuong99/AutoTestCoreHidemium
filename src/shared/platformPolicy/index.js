@@ -9,6 +9,7 @@
 const all = require('./all');
 const windows = require('./windows');
 const macos = require('./macos');
+const linux = require('./linux');
 const ios = require('./ios');
 const android = require('./android');
 const {
@@ -28,19 +29,27 @@ const POLICIES = {
   macos,
   mac: macos,
   darwin: macos,
+  linux,
+  lin: linux,
+  ubuntu: linux,
   ios,
   iphone: ios,
   ipad: ios,
   android,
 };
 
+/** supported lay tu file policy (<os>.js). */
 const OS_OPTIONS = [
-  { id: 'all', labelKey: 'os.all', supported: true },
-  { id: 'windows', labelKey: 'os.windows', supported: true },
-  { id: 'macos', labelKey: 'os.macos', supported: false },
-  { id: 'ios', labelKey: 'os.ios', supported: false },
-  { id: 'android', labelKey: 'os.android', supported: false },
-];
+  { id: 'all', labelKey: 'os.all' },
+  { id: 'windows', labelKey: 'os.windows' },
+  { id: 'macos', labelKey: 'os.macos' },
+  { id: 'linux', labelKey: 'os.linux' },
+  { id: 'ios', labelKey: 'os.ios' },
+  { id: 'android', labelKey: 'os.android' },
+].map((o) => ({
+  ...o,
+  supported: !!(POLICIES[o.id] && POLICIES[o.id].supported),
+}));
 
 const DEFAULT_OS = 'windows';
 

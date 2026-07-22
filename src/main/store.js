@@ -16,7 +16,7 @@ const DEFAULTS = {
   autoClose: false,       // tu goi /closeProfile sau khi check xong
   testWaitMs: 10000,      // che do Test luong: giu profile mo bao lau truoc khi dong
   locale: 'vi',           // 'vi' | 'en'
-  targetOs: 'windows',    // all | windows | macos | ios | android
+  targetOs: 'windows',    // all | windows | macos | linux | ios | android
   /** true = openProfile kem restore_session=false (khong mo lai tab cu) */
   disableRestoreSession: true,
 };

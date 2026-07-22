@@ -1,12 +1,14 @@
 /**
- * Stub — chua implement policy Android.
+ * Policy test fingerprint Android (Chromium spoof tren Hidemium).
  */
 module.exports = {
   id: 'android',
   label: 'Android',
-  supported: false,
-  reason: 'Android test policy chua implement — chon Windows hoac bo sung android.js',
-  skipChecks: [],
-  skipConfigKeys: [],
+  supported: true,
+  skipChecks: ['mac_address', 'desktop_name', 'font'],
+  skipConfigKeys: [
+    'hidemium.navigator.physical_memory',
+    'hidemium.webgl.mode',
+  ],
   matchAliases: {},
 };
