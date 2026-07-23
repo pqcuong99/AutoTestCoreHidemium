@@ -39,7 +39,8 @@ function scrapeNavigatorInPage() {
       .toLowerCase();
 
   const aliases = {
-    platform: ['navigator.platform', 'platform'],
+    // Uu tien navigator.platform — tranh nham label "Platform" (UA/OS card).
+    platform: ['navigator.platform'],
     hardwareConcurrency: [
       'hardware concurrency',
       'hardwareconcurrency',
@@ -139,6 +140,13 @@ function scrapeNavigatorInPage() {
         /\b(MacIntel|Win32|Win64|Linux(?:\s+\S+)?|iPhone|iPad|Android)\b/i
       );
       value = match ? match[1] : native[key];
+      // Neu native/DOM khong hop le, suy tu UA (iOS spoof).
+      if (!value || !/\b(MacIntel|Win32|Win64|Linux|iPhone|iPad|Android)\b/i.test(String(value))) {
+        const ua = navigator.userAgent || '';
+        if (/iPhone/i.test(ua)) value = 'iPhone';
+        else if (/iPad/i.test(ua)) value = 'iPad';
+        else if (/Android/i.test(ua)) value = 'Linux armv81';
+      }
     } else {
       value = numberFrom(nearby.text);
       if (value == null && key === 'maxTouchPoints' && /\b(no|false|unsupported)\b/i.test(nearby.text)) {

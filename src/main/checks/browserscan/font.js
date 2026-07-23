@@ -65,7 +65,8 @@ async function readFontHashViaCdp(page) {
   const session = await page.context().newCDPSession(page);
   try {
     await session.send('DOM.enable');
-    for (let attempt = 0; attempt < 20; attempt++) {
+
+    async function readOnce() {
       const { root } = await session.send('DOM.getDocument', {
         depth: 1,
         pierce: true,
@@ -74,23 +75,24 @@ async function readFontHashViaCdp(page) {
         nodeId: root.nodeId,
         selector: FONT_CONTAINER_SELECTOR,
       });
-      if (nodeId) {
-        const { outerHTML } = await session.send('DOM.getOuterHTML', { nodeId });
-        const text = String(outerHTML || '').replace(/<[^>]*>/g, ' ');
-        const hash = text.match(/\b(?:0x)?[a-f0-9]{8,128}\b/i)?.[0];
-        if (hash) return hash;
-      } else if (attempt === 0) {
-        await session.send('Runtime.evaluate', {
-          expression: `(() => {
-            const button = [...document.querySelectorAll('button')]
-              .find((element) => /^expand$/i.test((element.textContent || '').trim()));
-            if (button) button.click();
-          })()`,
-        }).catch(() => {});
-      }
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      if (!nodeId) return '';
+      const { outerHTML } = await session.send('DOM.getOuterHTML', { nodeId });
+      const text = String(outerHTML || '').replace(/<[^>]*>/g, ' ');
+      return text.match(/\b(?:0x)?[a-f0-9]{8,128}\b/i)?.[0] || '';
     }
-    return '';
+
+    let hash = await readOnce();
+    if (hash) return hash;
+
+    await session.send('Runtime.evaluate', {
+      expression: `(() => {
+        const button = [...document.querySelectorAll('button')]
+          .find((element) => /^expand$/i.test((element.textContent || '').trim()));
+        if (button) button.click();
+      })()`,
+    }).catch(() => {});
+
+    return (await readOnce()) || '';
   } finally {
     await session.detach().catch(() => {});
   }

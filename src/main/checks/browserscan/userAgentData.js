@@ -30,7 +30,27 @@ async function scrapeUserAgentDataInPage() {
   const normalize = (value) =>
     String(value || '').replace(/\s+/g, ' ').replace(/:$/, '').trim().toLowerCase();
 
-  function findValue(labels, marker) {
+  const SECTION_LABELS = new Set(
+    [
+      'browser',
+      'browser version',
+      'version',
+      'os',
+      'operating system',
+      'platform',
+      'javascript',
+      'user agent',
+      'useragent',
+      'webgl',
+      'unmasked vendor',
+      'unmasked renderer',
+      'fonts',
+      'screen',
+      'location',
+    ].map(normalize)
+  );
+
+  function findValue(labels, marker, accept) {
     const wanted = new Set(labels.map(normalize));
     let label = null;
     let shortest = Infinity;
@@ -59,10 +79,21 @@ async function scrapeUserAgentDataInPage() {
       const text = (candidate.innerText || candidate.textContent || '')
         .replace(/\s+/g, ' ')
         .trim();
-      if (!text || wanted.has(normalize(text)) || text.length > 500) continue;
-      if (!target || text.length < value.length) {
+      const normalized = normalize(text);
+      if (!text || wanted.has(normalized) || SECTION_LABELS.has(normalized)) continue;
+      if (text.length > 500) continue;
+      if (accept && !accept(text)) continue;
+      // Uu tien next sibling / value ngan hop le, khong lay nhan "Browser".
+      if (
+        !target ||
+        candidate === label.nextElementSibling ||
+        text.length < value.length
+      ) {
         target = candidate;
         value = text;
+        if (candidate === label.nextElementSibling && (!accept || accept(text))) {
+          break;
+        }
       }
     }
     const selected = target || label.parentElement || label;
@@ -71,23 +102,45 @@ async function scrapeUserAgentDataInPage() {
   }
 
   function normalizePlatform(value) {
-    const text = String(value || '');
+    const text = String(value || '').trim();
+    if (!text || SECTION_LABELS.has(normalize(text))) return null;
+    if (/iphone|ios/i.test(text)) return 'iOS';
+    if (/ipad/i.test(text)) return 'iPadOS';
     if (/mac|macintosh/i.test(text)) return 'macOS';
     if (/windows/i.test(text)) return 'Windows';
     if (/android/i.test(text)) return 'Android';
-    if (/iphone|ios/i.test(text)) return 'iOS';
-    if (/ipad/i.test(text)) return 'iPadOS';
     if (/cros|chrome os/i.test(text)) return 'Chrome OS';
     if (/linux/i.test(text)) return 'Linux';
-    return text.trim() || null;
+    return text || null;
   }
+
+  function platformFromUserAgent(ua) {
+    const text = String(ua || '');
+    if (/iPhone/i.test(text)) return 'iOS';
+    if (/iPad/i.test(text)) return 'iPadOS';
+    if (/Android/i.test(text)) return 'Android';
+    if (/Windows/i.test(text)) return 'Windows';
+    if (/Mac OS X|Macintosh/i.test(text)) return 'macOS';
+    if (/CrOS/i.test(text)) return 'Chrome OS';
+    if (/Linux/i.test(text)) return 'Linux';
+    return null;
+  }
+
+  const isOsValue = (text) =>
+    /ios|ipados|iphone|ipad|android|windows|macos|mac os|linux|cros|chrome os|\d/i.test(
+      text
+    ) && !SECTION_LABELS.has(normalize(text));
 
   const browserText = findValue(['Browser'], 'browser');
   const versionText = findValue(
     ['Browser Version', 'Version', 'Browser version (JavaScript)'],
     'version'
   );
-  const osText = findValue(['OS', 'Operating System', 'Platform'], 'os');
+  const osText = findValue(
+    ['OS', 'Operating System', 'Platform'],
+    'os',
+    isOsValue
+  );
   const javascriptText = findValue(
     ['JavaScript', 'Javascript', 'User Agent', 'UserAgent'],
     'useragent'
@@ -129,19 +182,28 @@ async function scrapeUserAgentDataInPage() {
     uaChromeVersion ||
     uaSafariVersion;
 
+  const iosVersion = userAgent
+    ?.match(/(?:iPhone OS|CPU OS)\s+([\d_]+)/i)?.[1]
+    ?.replace(/_/g, '.');
   const macVersion = userAgent
     ?.match(/Mac OS X\s+([\d_]+)/i)?.[1]
     ?.replace(/_/g, '.');
   const platformVersion =
     high.platformVersion ||
     String(osText).match(/\d+(?:[._]\d+)+/)?.[0]?.replace(/_/g, '.') ||
+    iosVersion ||
     macVersion ||
     null;
+
+  const platform =
+    normalizePlatform(high.platform) ||
+    normalizePlatform(osText) ||
+    platformFromUserAgent(userAgent);
 
   return {
     chromeVersion: chromeBrand?.version || uaFullVersion || null,
     uaVersion: uaFullVersion || null,
-    platform: normalizePlatform(high.platform || osText || userAgent),
+    platform,
     platformVersion,
     uaFullVersion: uaFullVersion || null,
     userAgent,

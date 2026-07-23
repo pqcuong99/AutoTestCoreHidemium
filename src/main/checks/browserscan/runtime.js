@@ -33,7 +33,6 @@ async function evaluateInPage(page, fn, arg) {
             error?.message || ''
           );
         if (!transient || attempt === 19) throw error;
-        await new Promise((resolve) => setTimeout(resolve, 50));
       }
     }
   } finally {

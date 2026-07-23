@@ -13,7 +13,6 @@ const CFG = {
 };
 const PARAM_PREFIX = 'hidemium.webgpu.param.';
 const LOAD_TIMEOUT_MS = 90000;
-const READY_TIMEOUT_MS = 15000;
 
 function cfgStr(map, key) {
   if (!(key in map) || map[key] == null || map[key] === '') return null;
@@ -333,25 +332,6 @@ function looksUnsupported(bundle) {
   return emptyInfo && emptyLimits && !(bundle?.features || []).length;
 }
 
-async function scrapeUntilReady(page, timeoutMs) {
-  const started = Date.now();
-  let last = null;
-  while (Date.now() - started < timeoutMs) {
-    last = await evaluateInPage(page, scrapeWebgpuBundleInPage);
-    if (last?.supported === false) return last;
-    if (last?.ready) return last;
-    await new Promise((resolve) => setTimeout(resolve, 300));
-  }
-  return last || {
-    supported: null,
-    ready: false,
-    adapterInfo: {},
-    limits: {},
-    featureStates: {},
-    features: [],
-  };
-}
-
 async function gotoWebgpu(page) {
   if (!/^https?:\/\/(?:www\.)?browserscan\.net\/webgpu\/?$/i.test(page.url())) {
     await page.goto(BROWSERSCAN_WEBGPU_URL, {
@@ -375,17 +355,25 @@ async function checkWebgpu(page, configMap, ctx) {
     });
   }
 
-  let bundle = await scrapeUntilReady(page, READY_TIMEOUT_MS);
+  let bundle = await evaluateInPage(page, scrapeWebgpuBundleInPage);
 
-  if (!bundle.ready && bundle.supported !== false) {
+  if (!bundle?.ready && bundle?.supported !== false) {
     if (ctx.signal?.aborted) throw new Error('aborted');
-    ctx.step(
-      'BrowserScan WebGPU: DOM chua san — reload 1 lan (quang cao / hydrate)',
-      'warn'
-    );
+    ctx.step('BrowserScan WebGPU: DOM chua san — reload 1 lan', 'warn');
     await gotoWebgpu(page);
     if (ctx.signal?.aborted) throw new Error('aborted');
-    bundle = await scrapeUntilReady(page, READY_TIMEOUT_MS);
+    bundle = await evaluateInPage(page, scrapeWebgpuBundleInPage);
+  }
+
+  if (!bundle) {
+    bundle = {
+      supported: null,
+      ready: false,
+      adapterInfo: {},
+      limits: {},
+      featureStates: {},
+      features: [],
+    };
   }
 
   if (looksUnsupported(bundle) || bundle.supported === false) {

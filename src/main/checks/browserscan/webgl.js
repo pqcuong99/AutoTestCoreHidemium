@@ -1,6 +1,6 @@
 /**
  * BrowserScan WebGL — hash + Unmasked Vendor + Unmasked Renderer.
- * Gia tri hydrate cham / bi quang cao ghep text → wait + fallback API + reload 1 lan.
+ * Fallback API + reload 1 lan neu thieu data.
  */
 const { evaluateInPage } = require('./runtime');
 const { BROWSERSCAN_URL } = require('./urls');
@@ -10,7 +10,6 @@ const CFG = {
   vendor: 'hidemium.webgl.vendor',
   renderer: 'hidemium.webgl.renderer',
 };
-const READY_TIMEOUT_MS = 12000;
 const LOAD_TIMEOUT_MS = 90000;
 
 function cfgStr(map, key) {
@@ -185,25 +184,18 @@ function isComplete(scraped) {
   return !!(scraped?.hash && scraped?.vendor && scraped?.renderer);
 }
 
-async function scrapeUntilReady(page, timeoutMs) {
-  const started = Date.now();
-  let last = { hash: null, vendor: null, renderer: null };
-  while (Date.now() - started < timeoutMs) {
-    last = (await evaluateInPage(page, scrapeWebglInPage)) || last;
-    if (isComplete(last)) return last;
-    await new Promise((resolve) => setTimeout(resolve, 250));
-  }
-  return last;
-}
-
 async function checkWebgl(page, configMap, ctx) {
-  ctx.step('BrowserScan WebGL: cho hash/vendor/renderer hydrate...');
-  let scraped = await scrapeUntilReady(page, READY_TIMEOUT_MS);
+  ctx.step('BrowserScan WebGL: scrape hash/vendor/renderer...');
+  let scraped = (await evaluateInPage(page, scrapeWebglInPage)) || {
+    hash: null,
+    vendor: null,
+    renderer: null,
+  };
 
   if (!isComplete(scraped)) {
     if (ctx.signal?.aborted) throw new Error('aborted');
     ctx.step(
-      'BrowserScan WebGL: thieu hash/vendor/renderer (hydrate/quang cao) — reload 1 lan',
+      'BrowserScan WebGL: thieu hash/vendor/renderer — reload 1 lan',
       'warn'
     );
     if (/^https?:\/\/(?:www\.)?browserscan\.net\/?$/i.test(page.url())) {
@@ -218,7 +210,7 @@ async function checkWebgl(page, configMap, ctx) {
       });
     }
     if (ctx.signal?.aborted) throw new Error('aborted');
-    scraped = await scrapeUntilReady(page, READY_TIMEOUT_MS);
+    scraped = (await evaluateInPage(page, scrapeWebglInPage)) || scraped;
   }
 
   const lines = [
