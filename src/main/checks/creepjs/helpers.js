@@ -6,7 +6,6 @@ const { CREEPJS_URLS } = require('./urls');
 const { summarizeFieldResults } = require('../../../shared/siteHighlight');
 
 const CREEPJS_URL = CREEPJS_URLS.main;
-const LOAD_TIMEOUT_MS = 90000;
 
 /**
  * CreepJS da render du lieu doc duoc (Fingerprint hoac DOM fallback).
@@ -67,10 +66,16 @@ function eqStr(a, b) {
 
 function eqNum(a, b) {
   if (a == null || b == null) return null;
+  const sa = String(a).trim().toLowerCase();
+  const sb = String(b).trim().toLowerCase();
+  // Infinity / -Infinity (config thuong viet "infinity")
+  if (sa === 'infinity' || sa === '-infinity' || sb === 'infinity' || sb === '-infinity') {
+    return sa === sb;
+  }
   const na = Number(a);
   const nb = Number(b);
   if (Number.isFinite(na) && Number.isFinite(nb)) return na === nb;
-  return String(a).trim() === String(b).trim();
+  return sa === sb;
 }
 
 /**
@@ -318,7 +323,6 @@ async function finishCheck(page, ctx, title, lines, missing = false) {
 
 module.exports = {
   CREEPJS_URL,
-  LOAD_TIMEOUT_MS,
   creepjsReadyPredicate,
   isCreepjsReady,
   cfgStr,

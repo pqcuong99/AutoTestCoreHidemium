@@ -42,6 +42,18 @@ async function scrapeWebgpuInPage() {
     return lines;
   }
 
+  // Mo modal bang DOM click — khong dung Playwright locator (tranh timeout).
+  try {
+    const open = document.evaluate(
+      '//*[@id="fingerprint-data"]/div[13]/div[1]/div[9]/label[1]',
+      document,
+      null,
+      XPathResult.FIRST_ORDERED_NODE_TYPE,
+      null
+    ).singleNodeValue;
+    if (open) open.click();
+  } catch { /* ignore */ }
+
   const modal = document.querySelector(
     'label.modal-content[for="toggle-open-creep-navigator-webgpu"]'
   );
@@ -211,12 +223,7 @@ function looksUnsupported(scraped) {
 }
 
 async function checkWebgpu(page, configMap, ctx) {
-  ctx.step(`CreepJS WebGPU: click ${OPEN_XPATH}`);
-  const trigger = page.locator(`xpath=${OPEN_XPATH}`).first();
-  if (await trigger.count()) {
-    await trigger.click({ force: true }).catch(() => {});
-  }
-
+  ctx.step('CreepJS WebGPU: scrape adapter/features/limits...');
   const scraped = await page.evaluate(scrapeWebgpuInPage);
   if (looksUnsupported(scraped)) {
     ctx.step('CreepJS WebGPU: not supported — skip webgpu/param', 'warn');

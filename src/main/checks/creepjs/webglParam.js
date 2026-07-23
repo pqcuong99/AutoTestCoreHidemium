@@ -54,6 +54,23 @@ function scrapeWebglParamsInPage() {
     return lines;
   }
 
+  // Mo modal bang DOM click — khong dung Playwright locator (tranh timeout).
+  try {
+    const open = document.evaluate(
+      '//*[@id="fingerprint-data"]/div[6]/div[1]/div[3]/label[1]',
+      document,
+      null,
+      XPathResult.FIRST_ORDERED_NODE_TYPE,
+      null
+    ).singleNodeValue;
+    if (open) open.click();
+  } catch { /* ignore */ }
+  try {
+    document
+      .querySelector('label.modal-open-btn[for="toggle-open-creep-canvas-webgl-extensions"]')
+      ?.click();
+  } catch { /* ignore */ }
+
   const modal = document.querySelector(
     '#fingerprint-data > div:nth-child(6) > div:nth-child(1) > div:nth-child(6) > label.modal-container > label'
   );
@@ -180,16 +197,7 @@ function buildLine(label, actual, expected) {
 }
 
 async function checkWebglParam(page, configMap, ctx) {
-  ctx.step(`CreepJS WebGL Param: click ${OPEN_XPATH}`);
-  const trigger = page.locator(`xpath=${OPEN_XPATH}`).first();
-  if (await trigger.count()) {
-    await trigger.click({ force: true }).catch(() => {});
-  }
-  const extensionTrigger = page.locator(EXTENSION_OPEN_SELECTOR).first();
-  if (await extensionTrigger.count()) {
-    await extensionTrigger.click({ force: true }).catch(() => {});
-  }
-
+  ctx.step('CreepJS WebGL Param: scrape params/extensions...');
   const scraped = await page.evaluate(scrapeWebglParamsInPage);
   const configured = Object.keys(configMap)
     .filter((key) => key.startsWith(CFG_PREFIX))

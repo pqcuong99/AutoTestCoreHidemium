@@ -15,14 +15,14 @@ const CFG = {
   uaPlatform: 'hidemium.navigator.os.platform_os',
 };
 
-async function waitAndScrape(page) {
+async function scrape(page) {
   return page.evaluate(scrapeNavigatorDataInPage);
 }
 
 async function checkPlatformNavigator(page, configMap, ctx) {
   const { step } = ctx;
   step('CreepJS Platform (navigator): select device...');
-  const scraped = await waitAndScrape(page);
+  const scraped = await scrape(page);
   step(`CreepJS Platform (navigator): ${scraped.navigatorPlatform ?? 'null'}`);
 
   const line = lineResult(
@@ -52,7 +52,7 @@ async function checkPlatformNavigator(page, configMap, ctx) {
 async function checkPlatformUa(page, configMap, ctx) {
   const { step } = ctx;
   step('CreepJS Platform (UA): select userAgent...');
-  const scraped = await waitAndScrape(page);
+  const scraped = await scrape(page);
   step(
     `CreepJS Platform (UA): ${scraped.uaPlatform ?? 'null'} (needle: ${scraped.uaPlatformNeedle ?? 'null'})`
   );

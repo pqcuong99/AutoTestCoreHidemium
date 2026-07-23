@@ -5,7 +5,7 @@
  */
 const { WEBSITES } = require('../../../shared/websites');
 const { openPage, release } = require('../../browserCdp');
-const { CREEPJS_URL, LOAD_TIMEOUT_MS, isCreepjsReady } = require('./helpers');
+const { CREEPJS_URL, isCreepjsReady } = require('./helpers');
 const { checkScreen } = require('./screen');
 const { checkPlatformNavigator, checkPlatformUa } = require('./platform');
 const {
@@ -19,10 +19,7 @@ const {
   checkUaFullVersion,
   checkModel,
 } = require('./userAgentData');
-const {
-  checkFullVersionList,
-  checkFormFactors,
-} = require('./extraUserAgentData');
+const { checkFullVersionList } = require('./extraUserAgentData');
 const { checkBattery, checkNetwork } = require('./systemStatus');
 const { checkFont } = require('./font');
 const { checkWebgl } = require('./webgl');
@@ -30,6 +27,9 @@ const { checkWebglParam } = require('./webglParam');
 const { checkWebgpu } = require('./webgpu');
 
 const SITE = WEBSITES.find((w) => w.key === 'creepjs');
+
+/** webgl / webgl_param / webgpu chay song song (cung 1 page, evaluate DOM). */
+const PARALLEL_KEYS = new Set(['webgl', 'webgl_param', 'webgpu']);
 
 /** Handler nhan (page, configMap, ctx) — page da o CreepJS. */
 const HANDLERS = {
@@ -44,7 +44,7 @@ const HANDLERS = {
   ua_full_version: checkUaFullVersion,
   model: checkModel,
   full_version_list: checkFullVersionList,
-  form_factors: checkFormFactors,
+  // form_factors: CreepJS khong hien tren UI — skip (BrowserScan/BrowserLeaks van check).
   battery: checkBattery,
   network: checkNetwork,
   font: checkFont,
@@ -83,7 +83,21 @@ async function run(checkKeys, ctx) {
     });
   };
 
+  const runOne = async (key) => {
+    if (signal?.aborted) throw new Error('aborted');
+    try {
+      results[key] = await HANDLERS[key](page, configMap, ctx);
+      emitRealtimeResult(key, results[key]);
+    } catch (err) {
+      if (err.message === 'aborted') throw err;
+      step(`CreepJS ${key} loi: ${err.message}`, 'err');
+      results[key] = { state: 'fail', value: err.message, pass: false, lines: [] };
+      emitRealtimeResult(key, results[key]);
+    }
+  };
+
   let session;
+  let page;
   try {
     step('CreepJS: ket noi CDP + tim tab creepjs...');
     session = await openPage(openData, {
@@ -91,33 +105,30 @@ async function run(checkKeys, ctx) {
       pruneExtraMatchingPages: true,
       keepMatchingPages: 1,
     });
-    const { page } = session;
-    page.setDefaultTimeout(LOAD_TIMEOUT_MS);
+    page = session.page;
 
     if (signal?.aborted) throw new Error('aborted');
 
     const onCreepjs = /^https?:\/\/abrahamjuliot\.github\.io\/creepjs\/?/i.test(page.url() || '');
     if (!onCreepjs) {
       step(`CreepJS: goto ${CREEPJS_URL}`);
-      await page.goto(CREEPJS_URL, { waitUntil: 'domcontentloaded', timeout: LOAD_TIMEOUT_MS });
+      await page.goto(CREEPJS_URL, { waitUntil: 'domcontentloaded' });
     } else if (await isCreepjsReady(page)) {
       step('CreepJS: dung lai tab da mo, du lieu san sang');
     } else {
       step('CreepJS: tab cu chua load xong — reload');
-      await page.reload({ waitUntil: 'domcontentloaded', timeout: LOAD_TIMEOUT_MS });
+      await page.reload({ waitUntil: 'domcontentloaded' });
     }
 
-    for (const key of supported) {
-      if (signal?.aborted) throw new Error('aborted');
-      try {
-        results[key] = await HANDLERS[key](page, configMap, ctx);
-        emitRealtimeResult(key, results[key]);
-      } catch (err) {
-        if (err.message === 'aborted') throw err;
-        step(`CreepJS ${key} loi: ${err.message}`, 'err');
-        results[key] = { state: 'fail', value: err.message, pass: false, lines: [] };
-        emitRealtimeResult(key, results[key]);
-      }
+    const sequential = supported.filter((key) => !PARALLEL_KEYS.has(key));
+    const parallel = supported.filter((key) => PARALLEL_KEYS.has(key));
+
+    for (const key of sequential) {
+      await runOne(key);
+    }
+    if (parallel.length) {
+      step(`CreepJS: chay song song ${parallel.join(', ')}...`);
+      await Promise.all(parallel.map((key) => runOne(key)));
     }
 
     const keepPage = !(options && options.autoClose);

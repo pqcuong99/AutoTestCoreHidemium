@@ -44,13 +44,17 @@ function scrapeStatusInPage() {
     const nb = netBlock[1];
     const rttLine = nb.match(/rtt:\s*([\d.]+)/i);
     const dlLine = nb.match(/downlink:\s*([\d.]+)/i);
-    const maxLine = nb.match(/max:\s*([\d.]+)/i);
+    const maxLine = nb.match(/max:\s*([\d.]+|infinity)/i);
     const etLine = nb.match(/effectiveType:\s*(\S+)/i);
     const sdLine = nb.match(/saveData:\s*(\S+)/i);
     const typeLine = nb.match(/(?:^|[\n,])\s*type:\s*(\S+)/i);
     if (rttLine) out.rtt = Number(rttLine[1]);
     if (dlLine) out.downlink = Number(dlLine[1]);
-    if (maxLine) out.downlinkmax = Number(maxLine[1]);
+    if (maxLine) {
+      out.downlinkmax = /infinity/i.test(maxLine[1])
+        ? Infinity
+        : Number(maxLine[1]);
+    }
     if (etLine) out.effective_type = etLine[1];
     if (sdLine) out.save_data = sdLine[1].replace(/[,;]+$/, '').toLowerCase();
     if (typeLine) out.type = typeLine[1];

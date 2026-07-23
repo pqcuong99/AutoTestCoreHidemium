@@ -30,58 +30,100 @@ async function scrapeClientHintsInPage() {
   const normalize = (value) =>
     String(value || '').replace(/\s+/g, ' ').replace(/:$/, '').trim().toLowerCase();
 
-  function selectValue(labels, marker) {
-    const wanted = new Set(labels.map(normalize));
+  const HINT_LABELS = new Set(
+    [
+      'model',
+      'sec-ch-ua-model',
+      'sec-ch-ua-full-version-list',
+      'sec-ch-ua-full-version',
+      'sec-ch-ua-mobile',
+      'sec-ch-ua-form-factors',
+      'sec-ch-ua',
+      'sec-ch-ua-platform',
+      'sec-ch-ua-platform-version',
+      'sec-ch-ua-arch',
+      'sec-ch-ua-bitness',
+      'sec-ch-ua-wow64',
+      'mobile',
+      'platform',
+      'architecture',
+    ].map(normalize)
+  );
+
+  /**
+   * BrowserScan Client Hints: moi row = [label card][value card].
+   * Lay dung o value (sibling), khong lay nhan ngan / label khac.
+   */
+  function selectValue(labels, marker, accept) {
+    const wanted = labels.map(normalize);
+
     let label = null;
-    let shortest = Infinity;
-    for (const element of document.querySelectorAll('body *')) {
-      const text = normalize(element.textContent);
-      if (!wanted.has(text)) continue;
-      if ((element.textContent || '').length < shortest) {
-        label = element;
-        shortest = (element.textContent || '').length;
+    for (const name of wanted) {
+      let best = null;
+      let shortest = Infinity;
+      for (const element of document.querySelectorAll('h3, body *')) {
+        const raw = (element.textContent || '').trim();
+        if (normalize(raw) !== name) continue;
+        if (raw.length > 80) continue;
+        if (raw.length < shortest) {
+          best = element;
+          shortest = raw.length;
+        }
+      }
+      if (best) {
+        label = best;
+        break;
       }
     }
     if (!label) return '';
 
-    const candidates = [];
-    if (label.nextElementSibling) candidates.push(label.nextElementSibling);
-    let parent = label.parentElement;
-    for (let depth = 0; parent && depth < 4; depth++, parent = parent.parentElement) {
-      for (const child of parent.children) {
-        if (child !== label) candidates.push(child);
+    let valueEl = null;
+    let row = label.parentElement;
+    for (let depth = 0; row && depth < 6; depth++, row = row.parentElement) {
+      if (row.children.length < 2) continue;
+      for (const child of row.children) {
+        if (child.contains(label)) continue;
+        const text = (child.innerText || child.textContent || '')
+          .replace(/\s+/g, ' ')
+          .trim();
+        if (!text || HINT_LABELS.has(normalize(text))) continue;
+        if (text.length > 1000) continue;
+        if (accept && !accept(text)) continue;
+        valueEl = child;
+        break;
       }
+      if (valueEl) break;
     }
 
-    let target = null;
-    let value = '';
-    for (const candidate of candidates) {
-      const text = (candidate.innerText || candidate.textContent || '')
+    if (!valueEl && label.nextElementSibling) {
+      const text = (label.nextElementSibling.innerText || label.nextElementSibling.textContent || '')
         .replace(/\s+/g, ' ')
         .trim();
-      if (!text || wanted.has(normalize(text)) || text.length > 1000) continue;
-      if (!target || text.length < value.length) {
-        target = candidate;
-        value = text;
-      }
+      if (text && (!accept || accept(text))) valueEl = label.nextElementSibling;
     }
-    const selected = target || label.parentElement || label;
+
+    const selected = valueEl || label.parentElement || label;
     selected.setAttribute(`data-autotest-bs-ch-${marker}`, '1');
-    return value;
+    return valueEl
+      ? (valueEl.innerText || valueEl.textContent || '').replace(/\s+/g, ' ').trim()
+      : '';
   }
 
   function cleanHint(value) {
     const text = String(value || '').trim();
     if (!text || /not received|unsupported|undefined|null/i.test(text)) return null;
+    // "" / '' → empty model
+    if (/^["']\s*["']$/.test(text)) return null;
     return text.replace(/^["']|["']$/g, '').trim() || null;
   }
 
-  const modelText = selectValue(['sec-ch-ua-model'], 'model');
+  // Uu tien card "model" (UI), roi moi sec-ch-ua-model.
+  const modelText = selectValue(['model', 'sec-ch-ua-model'], 'model');
   const fullListText = selectValue(
     ['sec-ch-ua-full-version-list', 'sec-ch-ua-full-version'],
     'fullversion'
   );
-  const mobileText = selectValue(['sec-ch-ua-mobile'], 'mobile');
+  const mobileText = selectValue(['sec-ch-ua-mobile', 'mobile'], 'mobile');
   const formFactorsText = selectValue(
     ['sec-ch-ua-form-factors'],
     'formfactors'
