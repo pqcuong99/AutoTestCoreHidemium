@@ -5,6 +5,10 @@
  */
 
 const { CHECK_KEYS } = require('./selectors');
+const {
+  platformFromUserAgent,
+  parseUaBrowserVersion,
+} = require('../../../shared/uaPlatform');
 
 const SCRAPE_DOM_EXPRESSION = `(() => {
   const pairs = [];
@@ -128,13 +132,7 @@ function val(m) {
 }
 
 function parseChromeVersion(value) {
-  const s = String(value || '').trim();
-  if (!s) return '';
-  if (/^\d+(\.\d+){1,3}$/.test(s)) return s;
-  const fromUa = s.match(/Chrome\/([\d.]+)/i);
-  if (fromUa) return fromUa[1];
-  const any = s.match(/(\d+\.\d+\.\d+\.\d+|\d+\.\d+\.\d+)/);
-  return any ? any[1] : '';
+  return parseUaBrowserVersion(value);
 }
 
 function pushUnique(fields, label, value) {
@@ -205,8 +203,14 @@ function normalizeToConfigFields(checkKey, pairs) {
   }
 
   if (checkKey === 'platform_ua') {
-    const m = find(all, (x) => lab(x) === 'navigator.platform' || lab(x) === 'platform');
-    if (m) pushUnique(fields, 'platform', val(m));
+    // Cat platform tu User-Agent (khong dung navigator.platform / Linux armv8l tren web)
+    const ua =
+      find(all, (x) => lab(x) === 'user agent') ||
+      find(all, (x) => lab(x) === 'navigator.useragent');
+    if (ua) {
+      const platform = platformFromUserAgent(val(ua));
+      if (platform) pushUnique(fields, 'platform', platform);
+    }
     return fields;
   }
 

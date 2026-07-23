@@ -3,6 +3,8 @@
  * Moi checkKey chi in dung cac field Config co the suy ra tu web.
  */
 
+const { platformFromUserAgent, parseUaBrowserVersion } = require('../../../shared/uaPlatform');
+
 function parseResolution(value) {
   const m = String(value || '').match(/(\d+)\s*[x×X]\s*(\d+)/);
   if (!m) return null;
@@ -10,13 +12,7 @@ function parseResolution(value) {
 }
 
 function parseChromeVersion(value) {
-  const s = String(value || '').trim();
-  if (!s) return '';
-  if (/^\d+(\.\d+){1,3}$/.test(s)) return s;
-  const fromUa = s.match(/Chrome\/([\d.]+)/i);
-  if (fromUa) return fromUa[1];
-  const any = s.match(/(\d+\.\d+\.\d+\.\d+|\d+\.\d+\.\d+)/);
-  return any ? any[1] : '';
+  return parseUaBrowserVersion(value);
 }
 
 function lab(m) {
@@ -144,15 +140,15 @@ function normalizeToConfigFields(checkKey, matched, allPairs) {
     return fields;
   }
 
-  // ---------- platform_ua → platform ----------
+  // ---------- platform_ua → platform (cat tu UA, khong lay OS/platform tren web) ----------
   if (checkKey === 'platform_ua') {
-    // Config: platform (os platform). Iphey: OS / Platform trong BROWSER
-    const m =
-      findOne(all, (x) => lab(x) === 'os' && sec(x) === 'BROWSER') ||
-      findOne(all, (x) => lab(x) === 'platform' && sec(x) === 'BROWSER') ||
-      findOne(all, (x) => lab(x) === 'os name') ||
-      findOne(all, (x) => lab(x) === 'os' && sec(x) === 'NETWORK');
-    if (m) pushUnique(fields, 'platform', val(m));
+    const ua =
+      findOne(all, (x) => lab(x) === 'user agent' || lab(x) === 'user-agent') ||
+      findOne(all, (x) => lab(x) === 'ua');
+    if (ua) {
+      const platform = platformFromUserAgent(val(ua));
+      if (platform) pushUnique(fields, 'platform', platform);
+    }
     return fields;
   }
 
@@ -173,7 +169,11 @@ function normalizeToConfigFields(checkKey, matched, allPairs) {
       browser,
       (x) => lab(x) === 'version' || lab(x) === 'full version' || lab(x) === 'browser version'
     );
-    if (ver) pushUnique(fields, 'uaFullVersion', parseChromeVersion(val(ver)) || val(ver));
+    // Uu tien version tren trang; khong co thi cat tu UA (Version/ / Chrome/)
+    const fromPage = ver ? parseChromeVersion(val(ver)) || val(ver) : '';
+    const fromUa = ua ? parseChromeVersion(val(ua)) : '';
+    const uaFullVersion = fromPage || fromUa;
+    if (uaFullVersion) pushUnique(fields, 'uaFullVersion', uaFullVersion);
     if (ua) pushUnique(fields, 'userAgent', val(ua));
     return fields;
   }

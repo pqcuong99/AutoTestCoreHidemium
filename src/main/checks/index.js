@@ -208,6 +208,8 @@ async function runProfileCheck(lane, checkKeys, ctx) {
 
     const runKeys = checkKeys.filter((k) => !platform.skipChecks.has(k));
 
+    const profileOs = configOs || normalizeProfileOs(openedOs) || '';
+
     // ---------- 3. Cot B ----------
     abortCheck();
     const columnB = buildConfigColumn(checkKeys, cfg.map);
@@ -246,6 +248,7 @@ async function runProfileCheck(lane, checkKeys, ctx) {
           step,
           platform,
           targetOs: platform.id,
+          profileOs,
           options,
         });
         lane.assertOwns(uuid);
@@ -275,6 +278,7 @@ async function runProfileCheck(lane, checkKeys, ctx) {
           checkKeys: runKeys,
           signal,
           log: step,
+          profileOs,
         });
         lane.assertOwns(uuid);
         site.apply(lane, runKeys, res, emit, uuid);
