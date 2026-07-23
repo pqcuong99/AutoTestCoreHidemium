@@ -31,7 +31,7 @@ const {
 /** Danh dau check bi skip theo OS/browser policy cho 1 site. */
 function applyPolicySkips(lane, checkKeys, platform, siteKey, emit, uuid) {
   const tag = platform.browser
-    ? `${platform.id}/${platform.browser}`
+    ? `${platform.id}`
     : platform.id;
   for (const key of checkKeys) {
     if (!platform.skipChecks?.has(key)) continue;
@@ -175,8 +175,14 @@ async function runProfileCheck(lane, checkKeys, ctx) {
       normalizeBrowserId(listBrowser) ||
       normalizeBrowserId(lane.job?.browser);
 
-    // Gom policy OS + browsers[browserId] (vd mac/safari → skip webgpu).
-    platform = resolvePlatform(options?.targetOs, browserId);
+    // targetOs=all: khong loc list, nhung skip/policy theo OS that cua profile (ios/macos/...).
+    // targetOs=windows|macos|...: dung dung policy Settings.
+    const targetOsOpt = options?.targetOs || 'windows';
+    const policyOs =
+      !targetOsOpt || targetOsOpt === 'all'
+        ? configOs || normalizeProfileOs(openedOs) || normalizeProfileOs(lane.job?.os) || 'all'
+        : targetOsOpt;
+    platform = resolvePlatform(policyOs, browserId);
     emit({
       type: 'profile-meta',
       uuid,
@@ -186,24 +192,36 @@ async function runProfileCheck(lane, checkKeys, ctx) {
     });
     if (configOs) {
       step(`Profile OS (config): ${configOs}`, 'ok');
-      if (!profileMatchesTargetOs(configOs, platform.id, { requireKnown: true })) {
+      // Chi chan mismatch khi Settings chon 1 OS cu the (khong phai all).
+      if (
+        targetOsOpt !== 'all' &&
+        !profileMatchesTargetOs(configOs, targetOsOpt, { requireKnown: true })
+      ) {
         const msg = t('check.osMismatch', {
           profile: configOs,
-          target: platform.id,
+          target: targetOsOpt,
         });
         step(msg, 'err');
         emit({ type: 'profile-error', uuid, stage: 'platform', error: msg });
         return { ok: false, status: msg, error: msg, rows: {} };
       }
-    } else if (platform.id !== 'all') {
-      step('Profile OS: chua xac dinh tu list/config — van chay (target=' + platform.id + ')', 'warn');
+    } else if (targetOsOpt !== 'all') {
+      step('Profile OS: chua xac dinh tu list/config — van chay (target=' + targetOsOpt + ')', 'warn');
     }
     if (browserLabel) step(`Profile browser: ${browserLabel}`, 'ok');
-    if (platform.browser) {
-      step(`Policy: ${platform.label}/${platform.browser}`, 'ok');
+    if (platform.id && platform.id !== 'all') {
+      const tag = platform.browser ? `${platform.label}/${platform.browser}` : platform.label;
+      step(
+        targetOsOpt === 'all'
+          ? `Policy (theo profile): ${tag}`
+          : `Policy: ${tag}`,
+        'ok'
+      );
       if (platform.skipChecks.size) {
         step(`Policy skipChecks: ${[...platform.skipChecks].join(', ')}`, 'ok');
       }
+    } else if (targetOsOpt === 'all') {
+      step('Policy: All OS — chua biet OS profile, skip rong', 'warn');
     }
 
     const runKeys = checkKeys.filter((k) => !platform.skipChecks.has(k));

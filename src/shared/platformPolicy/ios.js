@@ -5,10 +5,22 @@ module.exports = {
   id: 'ios',
   label: 'iOS',
   supported: true,
-  skipChecks: ['mac_address', 'desktop_name', 'font'],
+  skipChecks: [
+    'mac_address',
+    'desktop_name',
+    'device_memory',
+    'platform_version',
+    'full_version_list',
+    'form_factors',
+    'battery',
+    'network',
+    'brands',
+    'model',
+    'webgpu',
+  ],
   skipConfigKeys: [
-    'hidemium.navigator.physical_memory',
     'hidemium.webgl.mode',
+    'hidemium.navigator.useragent.fullversion'
   ],
   matchAliases: {},
 };

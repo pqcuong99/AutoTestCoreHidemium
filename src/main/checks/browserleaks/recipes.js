@@ -162,7 +162,15 @@ const FIELD_OVERRIDE = {
     css: "#js-devicePixelRatio"
   },
   "hidemium.navigator.useragent.platforms": {
-    css: "#js-platform"
+    sel: [
+      {
+        css: "#js-platform"
+      },
+      {
+        css: "#js-uadata-platform"
+      },
+    ],
+    selMode: "first"
   },
   "hidemium.navigator.hardware_concurrency": {
     css: "#js-hardwareConcurrency"
@@ -177,7 +185,15 @@ const FIELD_OVERRIDE = {
     css: "#js-maxTouchPoints"
   },
   "hidemium.chrome.version": {
-    js: "function getBrowserVersion() {\n    const ua = document.getElementById(\"js-userAgent\").textContent.trim();\n\n    const patterns = [\n        /Edg\\/([\\d.]+)/,         // Edge\n        /Chrome\\/([\\d.]+)/,      // Chrome\n        /Version\\/([\\d.]+).*Safari/, // Safari\n        /Safari\\/([\\d.]+)/       // Safari WebKit (fallback)\n    ];\n\n    for (const pattern of patterns) {\n        const match = ua.match(pattern);\n        if (match) {\n            return match[1];\n        }\n    }\n\n    return null;\n}"
+    sel: [
+      {
+        css: "#js-uadata-uaFullVersion"
+      },
+      {
+        js: "function getBrowserVersion() {\n    const ua = document.getElementById(\"js-userAgent\").textContent.trim();\n\n    const patterns = [\n        /Edg\\/([\\d.]+)/,         // Edge\n        /Chrome\\/([\\d.]+)/,      // Chrome\n        /Version\\/([\\d.]+).*Safari/, // Safari\n        /Safari\\/([\\d.]+)/       // Safari WebKit (fallback)\n    ];\n\n    for (const pattern of patterns) {\n        const match = ua.match(pattern);\n        if (match) {\n            return match[1];\n        }\n    }\n\n    return null;\n}"
+      },
+    ],
+    selMode: "first"
   },
   "hidemium.navigator.useragent.version_useragent": {
     match: "includes",
@@ -198,7 +214,7 @@ const FIELD_OVERRIDE = {
       },
       {
         css: "#js-platform"
-      }
+      },
     ],
     selMode: "first"
   },
