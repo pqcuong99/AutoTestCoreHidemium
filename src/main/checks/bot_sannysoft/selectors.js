@@ -7,7 +7,7 @@ const { CHECK_KEYS } = require('../../../shared/checkItems');
 const SANNYSOFT_URL = 'https://bot.sannysoft.com/';
 
 /**
- * Cho:
+ * Cho day du:
  * - User Agent / WebGL result
  * - #fp2 (fpCollect + fpscanner) co hang SCREEN (JSON sWidth/…)
  */
@@ -27,12 +27,24 @@ const READY = {
     });
     return uaOk && (screenFp || fpRows.length >= 3);
   })()`,
+  /** Chi can UA — dung khi profile iOS (fp-collect thuong trong). */
+  expressionUaOnly: `(() => {
+    const ua = document.querySelector('#user-agent-result');
+    return !!(ua && (ua.textContent || '').trim().length > 5);
+  })()`,
   timeoutMs: 90000,
   pollMs: 600,
 };
+
+/**
+ * checkKey phu thuoc #fp2 / fpCollect — tren iOS thuong khong co → skip.
+ * (WebGL/UA van lay tu bang chinh / #user-agent-result.)
+ */
+const IOS_SKIP_CHECK_KEYS = ['screen'];
 
 module.exports = {
   SANNYSOFT_URL,
   READY,
   CHECK_KEYS,
+  IOS_SKIP_CHECK_KEYS,
 };

@@ -145,6 +145,8 @@ async function runProfileCheck(lane, checkKeys, ctx) {
       step('Profile OS: chua xac dinh tu list/config — van chay (target=' + platform.id + ')', 'warn');
     }
 
+    const profileOs = configOs || normalizeProfileOs(openedOs) || '';
+
     // ---------- 3. Cot B ----------
     abortCheck();
     const columnB = buildConfigColumn(checkKeys, cfg.map);
@@ -181,6 +183,7 @@ async function runProfileCheck(lane, checkKeys, ctx) {
           step,
           platform,
           targetOs: platform.id,
+          profileOs,
           options,
         });
         lane.assertOwns(uuid);
@@ -210,6 +213,7 @@ async function runProfileCheck(lane, checkKeys, ctx) {
           checkKeys,
           signal,
           log: step,
+          profileOs,
         });
         lane.assertOwns(uuid);
         site.apply(lane, checkKeys, res, emit, uuid);
