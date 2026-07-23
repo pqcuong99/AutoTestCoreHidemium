@@ -214,4 +214,4 @@ window.DTableResize = (() => {
     COLLAPSED_ROW,
   };
 })();
-
+

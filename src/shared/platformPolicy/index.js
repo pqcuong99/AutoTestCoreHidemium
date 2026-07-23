@@ -5,7 +5,7 @@
  * Them OS: tao file <os>.js + dang ky trong POLICIES.
  * Them browser: khai bao `browsers: { safari: { skipChecks: [...] } }` trong file OS.
  *
- * targetOs=all → khong loc list profile; policy skip rong (tru khi browsers.*).
+ * targetOs=all → khong loc list profile; luc run resolve policy theo OS that cua profile.
  */
 const all = require('./all');
 const windows = require('./windows');

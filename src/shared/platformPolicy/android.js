@@ -5,9 +5,8 @@ module.exports = {
   id: 'android',
   label: 'Android',
   supported: true,
-  skipChecks: ['mac_address', 'desktop_name', 'font'],
+  skipChecks: ['mac_address', 'desktop_name'],
   skipConfigKeys: [
-    'hidemium.navigator.physical_memory',
     'hidemium.webgl.mode',
   ],
   matchAliases: {},

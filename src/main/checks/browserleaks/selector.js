@@ -38,12 +38,13 @@ async function textBySelector(page, fieldOrSel) {
     const parts = [];
     for (const sel of tries) {
       const text = await readOne(page, sel);
+      // "undefined" tu CH empty → khong gop (trim da xu ly)
       if (text) parts.push(text);
     }
     return parts.join('\n');
   }
 
-  // first: thu lan luot den khi co text
+  // first: thu lan luot den khi co text that (bo qua literal "undefined"/"null")
   for (const sel of tries) {
     const text = await readOne(page, sel);
     if (text) return text;
@@ -185,7 +186,27 @@ async function readOne(page, sel) {
 }
 
 function trim(v) {
-  return String(v ?? '').trim();
+  let s = String(v ?? '')
+    .replace(/\u00a0/g, ' ')
+    .replace(/[\u200b\u200c\u200d\ufeff]/g, '')
+    .trim();
+  if (!s) return '';
+
+  // Literal DOM "undefined"/"null" (Client Hints khong co tren Safari/iOS) → rong
+  // de selMode=first fallback sang selector ke (vd #js-platform).
+  if (/^(undefined|null|n\/a|none|nan)$/i.test(s)) return '';
+
+  // BrowserLeaks: o thuong co icon status (! / ✔ / ✖) + gia tri that (xuong dong).
+  const lines = s
+    .split(/\r?\n/)
+    .map((l) => l.replace(/\u00a0/g, ' ').trim())
+    .filter(Boolean)
+    .filter((l) => !/^[!✔✖×✗✓⚠]+$/u.test(l))
+    .filter((l) => !/^(undefined|null|n\/a|none|nan)$/i.test(l));
+  if (lines.length) return lines.join(' ').trim();
+
+  if (/^[!✔✖×✗✓⚠\s]+$/u.test(s)) return '';
+  return s;
 }
 
 /**
@@ -222,19 +243,21 @@ function wrapJsSelector(src) {
 function trimJsResult(v) {
   if (v == null) return '';
   if (Array.isArray(v)) {
-    return v
-      .map((x) => String(x ?? '').trim())
-      .filter(Boolean)
-      .join('\n');
+    return trim(
+      v
+        .map((x) => String(x ?? '').trim())
+        .filter(Boolean)
+        .join('\n')
+    );
   }
   if (typeof v === 'object') {
     try {
-      return JSON.stringify(v);
+      return trim(JSON.stringify(v));
     } catch {
-      return String(v);
+      return trim(String(v));
     }
   }
-  return String(v).trim();
+  return trim(String(v));
 }
 
 module.exports = { textBySelector, normalizeSelList, readOne, wrapJsSelector, trimJsResult };

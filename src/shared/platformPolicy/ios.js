@@ -26,6 +26,7 @@ module.exports = {
     'hidemium.navigator.physical_memory',
     'hidemium.webgl.mode',
     'hidemium.navigator.device_memory',
+    'hidemium.navigator.useragent.fullversion',
   ],
   matchAliases: {},
 };

@@ -255,10 +255,8 @@ tr.dl-row-collapsed > td {
 tr.dl-row-collapsed > td > .dl-cell-clip {
   max-height: 32px !important;
   overflow: hidden !important;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
+  /* Khong dung line-clamp o day: de JS … + .kv-more quyet dinh truncate */
+  display: block;
   word-break: break-word;
 }
 
@@ -335,22 +333,18 @@ body.dl-resizing-row * { cursor: row-resize !important; user-select: none !impor
 [data-theme="light"] .kv-more,
 [data-theme="light"] .kv-less { color: #2563eb; }
 
-/* Thu gon: cat text dai (font list / features) — khong de hang bung cao */
+/* Truncate chi do JS clipValue + Show more — khong line-clamp CSS am tham theo width cot */
 .dl-kv-block.is-collapsed .kv-v,
 .dl-kv-block.is-collapsed .site-cell-plain {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  overflow: hidden;
   max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 .dl-kv-block.is-expanded .kv-v,
 .dl-kv-block.is-expanded .site-cell-plain {
-  -webkit-line-clamp: unset;
-  line-clamp: unset;
   display: block;
   overflow: visible;
+  white-space: pre-wrap;
 }
 
 .cell-missing { color: var(--muted); font-style: italic; }

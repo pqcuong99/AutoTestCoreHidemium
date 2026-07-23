@@ -72,9 +72,34 @@ window.DRender = (() => {
     if (window.DTableResize) DTableResize.applyColumns();
   }
 
-  /** Thu gon theo so dong VA do dai text (font 3 dong nhung moi dong rat dai). */
+  /** Thu gon theo so dong VA do dai text — chi JS cat + Show more (khong dung CSS line-clamp am tham). */
   const LINE_MAX = 6;
-  const VALUE_MAX = 96;
+  /** Nguong dung chung: clipValue + longValues (UA Chrome ~100–120 ky tu). */
+  const VALUE_MAX = 100;
+
+  /** O dang mo Show more — giu qua re-render table(). key: checkKey|config | checkKey|site|siteKey */
+  const expandedCells = new Set();
+
+  function cellExpandKey(checkKey, kind, siteKey) {
+    if (!checkKey) return '';
+    if (kind === 'config') return `${checkKey}|config`;
+    if (kind === 'site' && siteKey) return `${checkKey}|site|${siteKey}`;
+    return '';
+  }
+
+  function setCellExpanded(key, on) {
+    if (!key) return;
+    if (on) expandedCells.add(key);
+    else expandedCells.delete(key);
+  }
+
+  function clearExpandedCells() {
+    expandedCells.clear();
+  }
+
+  function isLongValue(value) {
+    return String(value ?? '').length > VALUE_MAX;
+  }
 
   /** Bo prefix [HARDWARE] / [BROWSER] ... trong label. */
   function cleanLabel(label) {
@@ -86,7 +111,7 @@ window.DRender = (() => {
 
   function clipValue(value, expanded) {
     const s = String(value ?? '');
-    if (expanded || s.length <= VALUE_MAX) return { text: s, clipped: false };
+    if (expanded || !isLongValue(s)) return { text: s, clipped: false };
     return { text: s.slice(0, VALUE_MAX) + '…', clipped: true };
   }
 
@@ -139,7 +164,7 @@ window.DRender = (() => {
   function kvListHtml(fields, { expanded = false, max = LINE_MAX } = {}) {
     const list = normalizeFields(fields);
     if (!list.length) return '';
-    const longValues = list.some((f) => f.value.length > VALUE_MAX);
+    const longValues = list.some((f) => isLongValue(f.value));
     const hiddenFields = Math.max(0, list.length - max);
     const shown = expanded ? list : list.slice(0, max);
     let html = shown
@@ -166,15 +191,22 @@ window.DRender = (() => {
     const idx = body.indexOf(':');
     if (idx <= 0) {
       const c = clipValue(body, expanded);
-      return { html: `<div class="kv ${cls}"><span class="kv-v">${esc(c.text)}</span></div>`, long: c.clipped || body.length > VALUE_MAX };
+      return { html: `<div class="kv ${cls}"><span class="kv-v">${esc(c.text)}</span></div>`, long: isLongValue(body) };
     }
     const k = body.slice(0, idx).trim();
     const v = body.slice(idx + 1).trim();
     const c = clipValue(v, expanded);
     return {
       html: `<div class="kv ${cls}"><span class="kv-k">${esc(k)}</span><span class="kv-v">${esc(c.text)}</span></div>`,
-      long: v.length > VALUE_MAX,
+      long: isLongValue(v),
     };
+  }
+
+  function bodyValueIsLong(body) {
+    const s = String(body || '');
+    const idx = s.indexOf(':');
+    if (idx <= 0) return isLongValue(s);
+    return isLongValue(s.slice(idx + 1).trim());
   }
 
   /** BrowserLeaks / CreepJS: lines SiteHighlight { text, status }. */
@@ -201,7 +233,7 @@ window.DRender = (() => {
       if (!hasKv) {
         const full = lines.join('\n');
         const c = clipValue(full, expanded);
-        const longValues = full.length > VALUE_MAX;
+        const longValues = isLongValue(full);
         const inner =
           `<span class="site-cell-plain">${esc(c.text)}</span>` +
           moreLessFooter({ expanded, hiddenFields: 0, longValues });
@@ -215,13 +247,9 @@ window.DRender = (() => {
       });
     }
 
-    const longValues = bodies.some((b) => {
-      const idx = b.body.indexOf(':');
-      const v = idx > 0 ? b.body.slice(idx + 1).trim() : b.body;
-      return v.length > VALUE_MAX;
-    });
     const hiddenFields = Math.max(0, bodies.length - max);
     const shown = expanded ? bodies : bodies.slice(0, max);
+    const longValues = bodies.some((b) => bodyValueIsLong(b.body));
     let html = shown.map((b) => oneLineKvHtml(b.body, b.cls, expanded).html).join('');
     html += moreLessFooter({ expanded, hiddenFields, longValues });
     return wrapKvBlock(html, expanded);
@@ -265,7 +293,7 @@ window.DRender = (() => {
         ? site.value || site.state
         : site.value || t('detail.noData');
     const c = clipValue(txt, expanded);
-    const longValues = String(txt).length > VALUE_MAX;
+    const longValues = isLongValue(txt);
     const inner =
       `<span class="site-cell-plain">${esc(c.text)}</span>` +
       moreLessFooter({ expanded, hiddenFields: 0, longValues });
@@ -322,7 +350,8 @@ window.DRender = (() => {
         const siteCells = WEBSITES.map(
           (w) =>
             `<td class="cell-site" data-site="${esc(w.key)}"><div class="dl-cell-clip">${siteCell(
-              row?.sites?.[w.key]
+              row?.sites?.[w.key],
+              { expanded: expandedCells.has(cellExpandKey(key, 'site', w.key)) }
             )}</div></td>`
         ).join('');
         return `<tr data-key="${esc(key)}">
@@ -331,7 +360,7 @@ window.DRender = (() => {
           )}</small></div></td>
           <td class="cell-b"><div class="dl-cell-clip">${
             row
-              ? fieldsHtml(row.config)
+              ? fieldsHtml(row.config, { expanded: expandedCells.has(cellExpandKey(key, 'config')) })
               : `<span class="cell-missing">${esc(t('detail.noData'))}</span>`
           }</div></td>
           ${siteCells}
@@ -366,5 +395,20 @@ window.DRender = (() => {
     logs();
   }
 
-  return { all, head, lanes, profiles, table, logs, header, fieldsHtml, fieldsHtmlAll, siteCell, esc };
+  return {
+    all,
+    head,
+    lanes,
+    profiles,
+    table,
+    logs,
+    header,
+    fieldsHtml,
+    fieldsHtmlAll,
+    siteCell,
+    esc,
+    cellExpandKey,
+    setCellExpanded,
+    clearExpandedCells,
+  };
 })();

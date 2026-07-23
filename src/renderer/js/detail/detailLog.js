@@ -60,7 +60,10 @@ window.DetailLog = (() => {
         r.statusText = '';
         r.error = '';
         pushLog(r, t('detail.started', { laneId: evt.laneId }));
-        if (S().follow) DStore.setCurrent(evt.uuid);
+        if (S().follow) {
+          DStore.setCurrent(evt.uuid);
+          DRender.clearExpandedCells?.();
+        }
         draw.all();
         break;
       }
@@ -421,6 +424,7 @@ window.DetailLog = (() => {
     DStore.setCurrent(item.dataset.uuid);
     S().follow = false;
     document.getElementById('dl-follow').checked = false;
+    DRender.clearExpandedCells?.();
     DRender.all();
   }
 
@@ -511,14 +515,30 @@ window.DetailLog = (() => {
       const expanded = !!more;
       const tr = e.target.closest('tr');
       const td = e.target.closest('td');
-      const row = DStore.current()?.rows?.[tr?.dataset.key];
-      if (!row || !td) return;
+      const checkKey = tr?.dataset.key;
+      const row = DStore.current()?.rows?.[checkKey];
+      if (!row || !td || !checkKey) return;
+
+      // Mo hang neu dang thu nho — tranh Show more bi overflow an
+      if (expanded && tr.classList.contains('dl-row-collapsed') && window.DTableResize?.setCollapsed) {
+        DTableResize.setCollapsed(tr, false);
+        const btn = tr.querySelector('.dl-row-toggle');
+        if (btn) {
+          btn.textContent = '▴';
+          btn.setAttribute('aria-expanded', 'true');
+        }
+      }
+
       const clip = td.querySelector('.dl-cell-clip') || td;
       if (td.classList.contains('cell-b')) {
+        const key = DRender.cellExpandKey(checkKey, 'config');
+        DRender.setCellExpanded(key, expanded);
         clip.innerHTML = DRender.fieldsHtml(row.config, { expanded });
         return;
       }
       if (td.classList.contains('cell-site') && td.dataset.site) {
+        const key = DRender.cellExpandKey(checkKey, 'site', td.dataset.site);
+        DRender.setCellExpanded(key, expanded);
         clip.innerHTML = DRender.siteCell(row.sites?.[td.dataset.site], { expanded });
       }
     });

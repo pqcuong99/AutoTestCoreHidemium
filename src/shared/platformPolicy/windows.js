@@ -15,7 +15,6 @@ module.exports = {
   skipChecks: ['mac_address', 'desktop_name'],
   /** configKey skip so sanh (khong co tren web / che do spoof). */
   skipConfigKeys: [
-    'hidemium.navigator.physical_memory',
     'hidemium.navigator.useragent.manufacturer',
     'hidemium.webgl.mode',
   ],
