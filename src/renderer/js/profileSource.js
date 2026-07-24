@@ -54,10 +54,33 @@ window.ProfileSource = (() => {
     );
   }
 
+  function currentTargetVersion() {
+    return (
+      (typeof Settings !== 'undefined' && Settings.getTargetVersion && Settings.getTargetVersion()) ||
+      'all'
+    );
+  }
+
+  function profileVersionLabel(row) {
+    if (typeof Settings !== 'undefined' && Settings.normalizeVersionLabel) {
+      return Settings.normalizeVersionLabel(row?.coreVersion);
+    }
+    if (window.ProfileIcons?.formatVersionLabel) {
+      return ProfileIcons.formatVersionLabel(row?.coreVersion);
+    }
+    return String(row?.coreVersion || '').trim().split('.')[0] || '';
+  }
+
   function filterByOs(rows) {
     const targetOs = currentTargetOs();
     if (!window.ProfileOs || targetOs === 'all') return rows;
     return rows.filter((r) => window.ProfileOs.profileMatchesTargetOs(r.os, targetOs));
+  }
+
+  function filterByVersion(rows) {
+    const targetVer = currentTargetVersion();
+    if (!targetVer || targetVer === 'all') return rows;
+    return rows.filter((r) => profileVersionLabel(r) === targetVer);
   }
 
   function filterBySearch(rows) {
@@ -71,11 +94,11 @@ window.ProfileSource = (() => {
   }
 
   /**
-   * Loc allRows theo OS + search, roi slice trang UI.
+   * Loc allRows theo OS + version + search, roi slice trang UI.
    * @param {number} [page]
    */
   function applyView(page = State.page || 1) {
-    const filtered = filterBySearch(filterByOs(State.allRows || []));
+    const filtered = filterBySearch(filterByVersion(filterByOs(State.allRows || [])));
     const pageSize = getPageSize();
     const lastPage = Math.max(1, Math.ceil(filtered.length / pageSize) || 1);
     const p = Math.min(Math.max(1, Number(page) || 1), lastPage);
@@ -160,8 +183,12 @@ window.ProfileSource = (() => {
    * Chi cap nhat slice trang (khong fetch lai API) — dung khi doi OS / search.
    */
   function refreshView({ page = 1 } = {}) {
+    if (typeof Settings !== 'undefined' && Settings.renderVersionOptions) {
+      Settings.renderVersionOptions(State.allRows || []);
+    }
     applyView(page);
     Table.pruneSelectionByTargetOs?.();
+    Table.pruneSelectionByTargetVersion?.();
     Table.render();
     Table.updateCount();
     renderPager();
@@ -219,7 +246,11 @@ window.ProfileSource = (() => {
       pruned = await pruneMissingSelections(State.source);
     }
     Table.pruneSelectionByTargetOs?.();
+    Table.pruneSelectionByTargetVersion?.();
     // prune co the doi selected; slice lai neu can
+    if (typeof Settings !== 'undefined' && Settings.renderVersionOptions) {
+      Settings.renderVersionOptions(State.allRows || []);
+    }
     applyView(State.page);
 
     setLoading(false);

@@ -387,6 +387,18 @@ body {
 .settings-body { padding: 12px; min-height: 0; }
 .field { margin-bottom: 16px; }
 .field > label, .field-head label { display: block; font-size: 11px; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: .5px; }
+.field-os-version-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+}
+.field-os-version-col {
+  flex: 1;
+  min-width: 0;
+}
+.field-os-version-col .select {
+  width: 100%;
+}
 .field-head { display: flex; align-items: center; justify-content: space-between; }
 .field-hint { margin: 6px 0 0; font-size: 11px; color: var(--muted); line-height: 1.4; }
 .settings-toggle {

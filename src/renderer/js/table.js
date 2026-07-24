@@ -26,6 +26,29 @@ window.Table = (() => {
     return removed;
   }
 
+  /** Bo tick profile khong khop targetVersion. */
+  function pruneSelectionByTargetVersion() {
+    const targetVer =
+      (typeof Settings !== 'undefined' && Settings.getTargetVersion && Settings.getTargetVersion()) ||
+      'all';
+    if (!targetVer || targetVer === 'all') return 0;
+    const labelOf = (row) =>
+      (typeof Settings !== 'undefined' && Settings.normalizeVersionLabel
+        ? Settings.normalizeVersionLabel(row?.coreVersion)
+        : String(row?.coreVersion || '').split('.')[0]) || '';
+    const pool = State.allRows?.length ? State.allRows : State.rows;
+    let removed = 0;
+    for (const [uuid, row] of Array.from(State.selected.entries())) {
+      const full = pool.find((r) => r.uuid === uuid) || row;
+      if (labelOf(full) !== targetVer) {
+        State.selected.delete(uuid);
+        removed++;
+      }
+    }
+    if (removed) persistSelection();
+    return removed;
+  }
+
   function render() {
     const rows = visibleRows();
     const tbody = $('#tbody');
@@ -134,6 +157,13 @@ window.Table = (() => {
     const targetOs =
       (typeof Settings !== 'undefined' && Settings.getTargetOs && Settings.getTargetOs()) ||
       'windows';
+    const targetVer =
+      (typeof Settings !== 'undefined' && Settings.getTargetVersion && Settings.getTargetVersion()) ||
+      'all';
+    const labelOf = (row) =>
+      (typeof Settings !== 'undefined' && Settings.normalizeVersionLabel
+        ? Settings.normalizeVersionLabel(row?.coreVersion)
+        : String(row?.coreVersion || '').split('.')[0]) || '';
     const pool = State.allRows?.length ? State.allRows : State.rows;
     return Array.from(State.selected.values())
       .map((r) => {
@@ -143,11 +173,15 @@ window.Table = (() => {
           name: r.name || row?.name || '',
           os: r.os || row?.os || '',
           browser: r.browser || row?.browser || '',
+          coreVersion: r.coreVersion || row?.coreVersion || '',
         };
       })
       .filter((r) => {
-        if (!window.ProfileOs) return true;
-        return window.ProfileOs.profileMatchesTargetOs(r.os, targetOs);
+        if (window.ProfileOs && !window.ProfileOs.profileMatchesTargetOs(r.os, targetOs)) {
+          return false;
+        }
+        if (targetVer && targetVer !== 'all' && labelOf(r) !== targetVer) return false;
+        return true;
       });
   }
 
@@ -163,6 +197,7 @@ window.Table = (() => {
     setStatus,
     selectedProfiles,
     pruneSelectionByTargetOs,
+    pruneSelectionByTargetVersion,
     resetStatus,
     updateCount,
     persistSelection,

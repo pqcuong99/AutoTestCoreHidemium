@@ -18,6 +18,8 @@ const DEFAULTS = {
   locale: 'vi',           // 'vi' | 'en'
   theme: 'dark',          // 'dark' | 'light'
   targetOs: 'windows',    // all | windows | macos | linux | ios | android
+  /** Loc list theo core/source version profile ('all' | '136' | …) */
+  targetVersion: 'all',
   /** true = openProfile kem restore_session=false (khong mo lai tab cu) */
   disableRestoreSession: true,
   pageSize: 20,           // so profile moi trang UI (10|20|50|100)

@@ -113,6 +113,63 @@ window.Settings = (() => {
     return $('#sel-target-os')?.value || cfg.targetOs || 'windows';
   }
 
+  function getTargetVersion() {
+    return $('#sel-target-version')?.value || cfg.targetVersion || 'all';
+  }
+
+  /** Chuan hoa version hien thi / loc (major 2-3 so, giong logo badge). */
+  function normalizeVersionLabel(version) {
+    if (window.ProfileIcons?.formatVersionLabel) {
+      return ProfileIcons.formatVersionLabel(version);
+    }
+    const raw = String(version || '').trim();
+    if (!raw) return '';
+    const major = raw.split('.')[0];
+    if (/^\d{2,3}$/.test(major)) return major;
+    const match = raw.match(/\b(\d{2,3})\b/);
+    return match ? match[1] : '';
+  }
+
+  /**
+   * Fill dropdown Version tu coreVersion cua profile (sau khi loc OS).
+   * @param {Array<{os?:string, coreVersion?:string}>} [rows]
+   */
+  function renderVersionOptions(rows) {
+    const sel = $('#sel-target-version');
+    if (!sel) return;
+    const pool = Array.isArray(rows)
+      ? rows
+      : typeof State !== 'undefined' && State.allRows
+        ? State.allRows
+        : [];
+    const targetOs = getTargetOs();
+    const byOs =
+      !window.ProfileOs || targetOs === 'all'
+        ? pool
+        : pool.filter((r) => window.ProfileOs.profileMatchesTargetOs(r.os, targetOs));
+
+    const set = new Set();
+    for (const r of byOs) {
+      const v = normalizeVersionLabel(r.coreVersion);
+      if (v) set.add(v);
+    }
+    const versions = [...set].sort((a, b) => Number(b) - Number(a) || String(b).localeCompare(String(a)));
+
+    let cur = cfg.targetVersion || 'all';
+    if (cur !== 'all' && !versions.includes(cur)) cur = 'all';
+    cfg.targetVersion = cur;
+
+    sel.innerHTML =
+      `<option value="all">${escapeHtml(t('version.all'))}</option>` +
+      versions
+        .map(
+          (v) =>
+            `<option value="${escapeHtml(v)}" ${v === cur ? 'selected' : ''}>${escapeHtml(v)}</option>`
+        )
+        .join('');
+    sel.value = cur;
+  }
+
   function persistChecks() {
     const checks = {};
     $$('#check-list input[type="checkbox"]').forEach((el) => (checks[el.dataset.key] = el.checked));
@@ -124,6 +181,7 @@ window.Settings = (() => {
     I18n.applyDom();
     renderChecks(cfg.checks || {});
     renderOsOptions();
+    renderVersionOptions();
     renderLocaleOptions();
     renderThemeOptions();
     if (typeof Table !== 'undefined') Table.render();
@@ -140,6 +198,7 @@ window.Settings = (() => {
     cfg.theme = config.theme === 'light' ? 'light' : 'dark';
     $('#chk-auto-close').checked = !!config.autoClose;
     cfg.targetOs = config.targetOs || 'windows';
+    cfg.targetVersion = config.targetVersion || 'all';
     const disableRestore = config.disableRestoreSession !== false;
     const restoreEl = $('#chk-disable-restore-session');
     if (restoreEl) restoreEl.checked = disableRestore;
@@ -187,11 +246,31 @@ window.Settings = (() => {
       const os = getTargetOs();
       cfg.targetOs = os;
       window.api.config.set({ targetOs: os });
-      // Loc lai allRows theo OS moi + phan trang client (tranh trang chi con 1-2 dong)
+      // Rebuild version theo OS moi; reset neu version khong con trong list
+      renderVersionOptions();
+      const ver = getTargetVersion();
+      if (ver !== cfg.targetVersion) {
+        cfg.targetVersion = ver;
+        window.api.config.set({ targetVersion: ver });
+      }
       if (typeof ProfileSource !== 'undefined' && ProfileSource.refreshView) {
         ProfileSource.refreshView({ page: 1 });
       } else if (typeof Table !== 'undefined') {
         Table.pruneSelectionByTargetOs?.();
+        Table.pruneSelectionByTargetVersion?.();
+        Table.render();
+        Table.updateCount?.();
+      }
+    });
+
+    $('#sel-target-version')?.addEventListener('change', () => {
+      const ver = getTargetVersion();
+      cfg.targetVersion = ver;
+      window.api.config.set({ targetVersion: ver });
+      if (typeof ProfileSource !== 'undefined' && ProfileSource.refreshView) {
+        ProfileSource.refreshView({ page: 1 });
+      } else if (typeof Table !== 'undefined') {
+        Table.pruneSelectionByTargetVersion?.();
         Table.render();
         Table.updateCount?.();
       }
@@ -242,6 +321,9 @@ window.Settings = (() => {
     getAutoClose,
     getDisableRestoreSession,
     getTargetOs,
+    getTargetVersion,
+    renderVersionOptions,
+    normalizeVersionLabel,
     applyLocale,
     applyTheme,
   };
