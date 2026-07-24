@@ -7,9 +7,9 @@
  * Trang thai dong:
  *   ok           — khop config
  *   mismatch     — khac config (✗)
- *   noConfig     — co tren web, khong co / placeholder trong config (⚠ no config)
+ *   noConfig     — (legacy) co tren web, khong co config — BrowserLeaks khong dung nua
  *   missingOnWeb — co config that, web khong co / scrape rong (⚠ missing on web)
- *   info         — chi hien thi (vd config=default)
+ *   info         — chi hien thi (vd config=default) — khong danh vang
  *   skipped      — bo qua, thuong khong ve
  */
 (function (root, factory) {
@@ -131,21 +131,24 @@
             .map((s) => s.trim().toLowerCase())
             .filter(Boolean)
         );
-        return rawLines.map((l) => {
-          const name = (l.split(':')[0] || '').trim().toLowerCase();
-          const on = /:\s*true\s*$/i.test(l);
-          let st = status === STATUS.MISMATCH ? STATUS.MISMATCH : STATUS.OK;
-          if (want.size && on && !want.has(name)) st = STATUS.NO_CONFIG;
-          if (want.size && want.has(name) && !on) st = STATUS.MISMATCH;
-          if (status === STATUS.NO_CONFIG) st = STATUS.NO_CONFIG;
-          const body = l.includes(':') ? l : `${label}: ${l}`;
-          return {
-            text: body + markFor(st),
-            status: st,
-            label: (l.split(':')[0] || label).trim(),
-            value: l.includes(':') ? l.slice(l.indexOf(':') + 1).trim() : l,
-          };
-        });
+        return rawLines
+          .map((l) => {
+            const name = (l.split(':')[0] || '').trim().toLowerCase();
+            const on = /:\s*true\s*$/i.test(l);
+            // Feature True tren web nhung khong co trong config → bo qua (khong vang noConfig).
+            if (want.size && on && !want.has(name)) return null;
+            let st = status === STATUS.MISMATCH ? STATUS.MISMATCH : STATUS.OK;
+            if (want.size && want.has(name) && !on) st = STATUS.MISMATCH;
+            if (status === STATUS.NO_CONFIG) st = STATUS.NO_CONFIG;
+            const body = l.includes(':') ? l : `${label}: ${l}`;
+            return {
+              text: body + markFor(st),
+              status: st,
+              label: (l.split(':')[0] || label).trim(),
+              value: l.includes(':') ? l.slice(l.indexOf(':') + 1).trim() : l,
+            };
+          })
+          .filter(Boolean);
       }
 
       return rawLines.map((l) => {

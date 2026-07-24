@@ -37,6 +37,7 @@ let {
   PAGES,
   RECIPES,
   fieldsForCheck,
+  fieldPresentInConfig,
   scrapeWebGpuBundle,
   findWebgpuLimitConfigKey,
   WEBGPU_PAGE_LIMITS,
@@ -49,6 +50,7 @@ function refreshRecipes() {
     PAGES,
     RECIPES,
     fieldsForCheck,
+    fieldPresentInConfig,
     scrapeWebGpuBundle,
     findWebgpuLimitConfigKey,
     WEBGPU_PAGE_LIMITS,
@@ -154,16 +156,25 @@ function compareOne(field, expected, actual) {
     };
   }
 
-  // Danh sach feature: expected CSV phai co mat va True tren page
+  // Danh sach feature: expected CSV — moi ten phai True tren web (actual CSV hoac "name: True").
   if (match === 'featureSet') {
     const need = String(expected)
       .split(/[,;]+/)
       .map((s) => s.trim().toLowerCase())
       .filter(Boolean);
-    const missing = need.filter((f) => {
-      const esc = f.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      return !new RegExp(`${esc}[^\\n]*?(?:✔|true)`, 'i').test(actual);
-    });
+    const got = new Set();
+    for (const line of String(actual).split(/[\n,;]+/)) {
+      const raw = line.trim();
+      if (!raw) continue;
+      if (/:\s*(false|0|no|✘|✗)\s*$/i.test(raw)) continue;
+      const name = (raw.split(':')[0] || '').trim().toLowerCase();
+      if (!name) continue;
+      // "name: True" / "name: ✔" / chi "name" (CSV dang bat)
+      if (/:\s*(true|✔|yes|1)\s*$/i.test(raw) || !raw.includes(':')) {
+        got.add(name);
+      }
+    }
+    const missing = need.filter((f) => !got.has(f));
     const ok = missing.length === 0;
     return {
       pass: ok,
@@ -247,41 +258,32 @@ async function scrapePage(page, checkKeys, configMap, step, platform) {
       }
 
       const exp = expectedValue(field, configMap);
-      const hasConfigKey =
-        field.configKey &&
-        Object.prototype.hasOwnProperty.call(configMap || {}, field.configKey);
+      const hasConfigKey = fieldPresentInConfig(field, configMap);
       const expected = exp ? exp.value : '';
-      const placeholder = isPlaceholderExpected(expected);
-      const noRealConfig = !hasConfigKey || placeholder;
-      const discover = checkKey === 'webgl_param' || checkKey === 'webgpu';
+      // Co key nhung value rong / default → khong so sanh (khong danh vang).
+      const placeholder = !exp || isPlaceholderExpected(expected);
 
-      let actual = '';
-      if (checkKey === 'webgpu' && webgpuBundle) {
-        actual = actualFromWebGpuBundle(webgpuBundle, field);
-      } else {
-        actual = await textBySelector(page, field);
-      }
-
-      // webgl_param / webgpu: hien moi key tren web; thieu config -> ⚠ de bo sung
-      if (discover && noRealConfig) {
-        out[checkKey].push({
-          label: field.label,
-          configKey: field.configKey,
-          expected: '',
-          actual,
-          pass: true,
-          skipped: true,
-          noConfig: true,
-          detail: actual
-            ? `${field.label}: ${actual} (no config — can add)`
-            : `${field.label}: empty on page`,
-        });
-        if (actual) {
-          step(`BrowserLeaks [${checkKey}/${field.label}]: NO_CONFIG — ${actual}`, 'warn');
-        }
+      // Key khong co trong config → khong lay / khong hien tu web.
+      if (!hasConfigKey) {
         continue;
       }
 
+      let actual = '';
+      if (checkKey === 'webgpu' && webgpuBundle) {
+        actual = actualFromWebGpuBundle(webgpuBundle, field, expected);
+      } else {
+        actual = await textBySelector(page, field);
+        // Fallback DOM scrape features → CSV theo config
+        if (
+          field.match === 'featureSet' ||
+          field.label === 'features' ||
+          /features$/i.test(field.configKey || '')
+        ) {
+          actual = featuresCsvFromWeb(actual, expected);
+        }
+      }
+
+      // Config = default/placeholder: khong so sanh, khong danh vang (infoOnly).
       if (placeholder) {
         out[checkKey].push({
           label: field.label,
@@ -355,16 +357,60 @@ async function scrapePage(page, checkKeys, configMap, step, platform) {
 }
 
 /**
- * Map field webgpu -> gia tri tu bundle (info / limits / features).
+ * WebGPU features → CSV giong config: chi feature nam trong expected va True tren web.
+ * @param {Record<string,string>|string} featSource — map name→True/False hoac text "name: True\\n..."
+ * @param {string} expectedCsv — hidemium.webgpu.features
  */
-function actualFromWebGpuBundle(bundle, field) {
+function featuresCsvFromWeb(featSource, expectedCsv) {
+  const want = String(expectedCsv || '')
+    .split(/[,;]+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (!want.length) return '';
+
+  /** @type {Map<string, boolean>} */
+  const onByLower = new Map();
+  if (featSource && typeof featSource === 'object' && !Array.isArray(featSource)) {
+    for (const [name, val] of Object.entries(featSource)) {
+      onByLower.set(String(name).toLowerCase(), /true|✔|yes|1/i.test(String(val)));
+    }
+  } else {
+    for (const line of String(featSource || '').split(/\r?\n/)) {
+      const rawLine = line.trim();
+      if (!rawLine) continue;
+      // "name: True" / "name: False" — 1 feature/dong; CSV thuan tach theo dau phay
+      const chunks = /:\s*(true|false|✔|✘|✗|yes|no|0|1)\s*$/i.test(rawLine)
+        ? [rawLine]
+        : rawLine.split(/[,;]+/);
+      for (const raw of chunks) {
+        const part = raw.trim();
+        if (!part) continue;
+        const name = (part.split(':')[0] || '').trim();
+        if (!name) continue;
+        const on = /:\s*(true|✔|yes|1)\s*$/i.test(part)
+          ? true
+          : /:\s*(false|0|no|✘|✗)\s*$/i.test(part)
+            ? false
+            : !part.includes(':');
+        onByLower.set(name.toLowerCase(), on);
+      }
+    }
+  }
+
+  // Giu thu tu + casing nhu config; chi nhung feature True tren web
+  return want.filter((name) => onByLower.get(name.toLowerCase()) === true).join(',');
+}
+
+/**
+ * Map field webgpu -> gia tri tu bundle (info / limits / features).
+ * @param {string} [expected] — dung khi field features (CSV config)
+ */
+function actualFromWebGpuBundle(bundle, field, expected = '') {
   const label = field.label || '';
   const key = field.configKey || '';
 
   if (label === 'features' || /features$/i.test(key)) {
-    return Object.entries(bundle.features || {})
-      .map(([name, on]) => `${name}: ${on}`)
-      .join('\n');
+    return featuresCsvFromWeb(bundle.features || {}, expected);
   }
 
   if (bundle.info && bundle.info[label] != null && bundle.info[label] !== '') {
@@ -380,12 +426,15 @@ function actualFromWebGpuBundle(bundle, field) {
 }
 
 /**
- * Tao field list day du tu bundle (info + features + limits) de UI khong thieu.
- * Limits: luon du 36 Adapter Limits (thu tu trang /webgpu), ke ca khi bundle thieu key.
+ * Tao field list tu bundle, CHI cac key co trong config (khong discover key thua tren web).
+ * Limits co trong config → doi chieu; thieu config → bo qua.
  */
 function fieldsFromWebGpuBundle(bundle, configMap) {
   const fields = [];
   const seen = new Set();
+  const map = configMap || {};
+
+  const hasKey = (k) => !!(k && Object.prototype.hasOwnProperty.call(map, k));
 
   const pushInfo = (title) => {
     if (!title || seen.has(title)) return;
@@ -394,7 +443,8 @@ function fieldsFromWebGpuBundle(bundle, configMap) {
         ? 'hidemium.webgpu.vendor'
         : title === 'architecture'
           ? 'hidemium.webgpu.architecture'
-          : findWebgpuLimitConfigKey(configMap, title);
+          : findWebgpuLimitConfigKey(map, title);
+    if (!hasKey(configKey)) return;
     fields.push({
       label: title,
       configKey,
@@ -404,7 +454,6 @@ function fieldsFromWebGpuBundle(bundle, configMap) {
     seen.add(title);
   };
 
-  // info: whitelist thu tu page, roi key thua trong bundle
   pushInfo('vendor');
   pushInfo('architecture');
   for (const title of WEBGPU_PAGE_INFO) {
@@ -414,20 +463,23 @@ function fieldsFromWebGpuBundle(bundle, configMap) {
     pushInfo(title);
   }
 
-  fields.push({
-    label: 'features',
-    configKey: 'hidemium.webgpu.features',
-    match: 'featureSet',
-    fromWeb: true,
-  });
-  seen.add('features');
+  if (hasKey('hidemium.webgpu.features')) {
+    fields.push({
+      label: 'features',
+      configKey: 'hidemium.webgpu.features',
+      match: 'featureSet',
+      fromWeb: true,
+    });
+    seen.add('features');
+  }
 
-  // Adapter Limits — dung thu tu WEBGPU_PAGE_LIMITS (= nth-child 1..36 tren #gpu-limits)
   for (const title of WEBGPU_PAGE_LIMITS) {
     if (seen.has(title)) continue;
+    const configKey = findWebgpuLimitConfigKey(map, title);
+    if (!hasKey(configKey)) continue;
     fields.push({
       label: title,
-      configKey: findWebgpuLimitConfigKey(configMap, title),
+      configKey,
       match: 'includes',
       fromWeb: true,
     });
@@ -435,18 +487,20 @@ function fieldsFromWebGpuBundle(bundle, configMap) {
   }
   for (const title of Object.keys(bundle.limits || {})) {
     if (seen.has(title)) continue;
+    const configKey = findWebgpuLimitConfigKey(map, title);
+    if (!hasKey(configKey)) continue;
     fields.push({
       label: title,
-      configKey: findWebgpuLimitConfigKey(configMap, title),
+      configKey,
       match: 'includes',
       fromWeb: true,
     });
     seen.add(title);
   }
 
-  // Config param.* chua co tren page bundle — van giu field de hien no config / empty
+  // Config param.* con thua — van so sanh (ke ca khi DOM thieu)
   const prefix = 'hidemium.webgpu.param.';
-  for (const key of Object.keys(configMap || {}).sort()) {
+  for (const key of Object.keys(map).sort()) {
     if (!key.startsWith(prefix)) continue;
     const title = key.slice(prefix.length);
     if (!title || seen.has(title)) continue;
@@ -466,7 +520,8 @@ function fieldsFromWebGpuBundle(bundle, configMap) {
  * Gom ket qua field -> 1 o site tren Detail Log (qua shared siteHighlight).
  */
 function summarize(fieldResults, checkKey) {
-  const discover = checkKey === 'webgl_param' || checkKey === 'webgpu';
+  // features da format CSV giong config — khong can discover tung dong True/False
+  const discover = checkKey === 'webgl_param';
   return summarizeFieldResults(fieldResults, { discoverMode: discover });
 }
 

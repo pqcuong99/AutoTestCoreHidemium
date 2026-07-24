@@ -786,16 +786,24 @@ async function scrapeWebGpuBundle(page) {
 }
 
 /**
- * webgl_param: lay TAT CA id co tren /webgl, map sang config neu co.
+ * webgl_param: chi id co mapping TOI KEY CO TRONG config (khong discover key thua tren web).
  */
 function fieldsFromWebGlParam(configMap) {
-  return [...WEBGL_PAGE_IDS].sort().map((id) => ({
-    label: glIdToSnake(id),
-    configKey: findWebglConfigKey(configMap, id),
-    css: `#${id}`,
-    match: 'includes',
-    fromWeb: true,
-  }));
+  const map = configMap || {};
+  return [...WEBGL_PAGE_IDS]
+    .sort()
+    .map((id) => {
+      const configKey = findWebglConfigKey(map, id);
+      if (!configKey || !(configKey in map)) return null;
+      return {
+        label: glIdToSnake(id),
+        configKey,
+        css: `#${id}`,
+        match: 'includes',
+        fromWeb: true,
+      };
+    })
+    .filter(Boolean);
 }
 
 /**
@@ -841,15 +849,15 @@ function webgpuDualSel(title) {
 }
 
 /**
- * webgpu: TAT CA Adapter Info (#gpu-info) + features + TAT CA limits (#gpu-limits).
- * Limit/param: 1 configKey co the thu ca limits lan features (sel dual).
+ * webgpu: Adapter Info + features + limits — CHI key co trong config.
  */
 function fieldsFromWebGpu(configMap) {
   const fields = [];
   const seen = new Set();
   const seenLabels = new Set();
+  const map = configMap || {};
+  const hasKey = (k) => !!(k && Object.prototype.hasOwnProperty.call(map, k));
 
-  // Adapter Info — moi title= tren #gpu-info (view-source)
   for (const title of [...WEBGPU_PAGE_INFO].sort()) {
     const keyCandidates =
       title === 'vendor'
@@ -861,8 +869,8 @@ function fieldsFromWebGpu(configMap) {
               `hidemium.webgpu.param.${title}`,
               `hidemium.webgpu.${title}`,
             ];
-    const resolved =
-      keyCandidates.find((k) => k in (configMap || {})) || keyCandidates[0];
+    const resolved = keyCandidates.find((k) => hasKey(k));
+    if (!resolved) continue;
 
     const ov = FIELD_OVERRIDE[resolved];
     if (ov && (ov.sel || ov.css || ov.js || ov.xpath)) {
@@ -880,18 +888,18 @@ function fieldsFromWebGpu(configMap) {
     seenLabels.add(title);
   }
 
-  // Adapter Features — full list
   const featKey = 'hidemium.webgpu.features';
-  fields.push(buildField('webgpu', { key: featKey, label: 'features' }));
-  seen.add(featKey);
-  seenLabels.add('features');
+  if (hasKey(featKey)) {
+    fields.push(buildField('webgpu', { key: featKey, label: 'features' }));
+    seen.add(featKey);
+    seenLabels.add('features');
+  }
 
-  // Adapter Limits — moi limit theo thu tu trang (nth-child 1..36)
   let limIdx = 0;
   for (const title of WEBGPU_PAGE_LIMITS) {
     limIdx += 1;
-    const configKey = findWebgpuLimitConfigKey(configMap, title);
-    if (seen.has(configKey)) continue;
+    const configKey = findWebgpuLimitConfigKey(map, title);
+    if (!hasKey(configKey) || seen.has(configKey)) continue;
     fields.push({
       label: title,
       configKey,
@@ -902,9 +910,8 @@ function fieldsFromWebGpu(configMap) {
     seenLabels.add(title);
   }
 
-  // Config con thua (param.*) chua nam trong whitelist limits — van thu 2 cho tren web
   const prefix = 'hidemium.webgpu.param.';
-  for (const key of Object.keys(configMap || {}).sort()) {
+  for (const key of Object.keys(map).sort()) {
     if (!key.startsWith(prefix)) continue;
     if (seen.has(key)) continue;
     const title = key.slice(prefix.length);
@@ -1103,12 +1110,23 @@ function buildRecipes() {
 const RECIPES = buildRecipes();
 
 /**
+ * Field co mat trong configMap (configKey hoac altConfigKeys).
+ * @param {{ configKey?: string, altConfigKeys?: string[] }} field
+ * @param {Record<string,string>|null|undefined} configMap
+ */
+function fieldPresentInConfig(field, configMap) {
+  const map = configMap || {};
+  const keys = [field?.configKey, ...(field?.altConfigKeys || [])].filter(Boolean);
+  return keys.some((k) => Object.prototype.hasOwnProperty.call(map, k));
+}
+
+/**
  * @param {string} checkKey
  * @param {Record<string,string>} [configMap]
  * @param {{ skipConfigKeys?: Set<string> } | null} [platform]
  */
 function fieldsForCheck(checkKey, configMap, platform) {
-  // webgl_param / webgpu: uu tien TAT CA key tren web de doi chieu / bo sung config
+  // webgl_param / webgpu: chi field co key trong config
   if (checkKey === 'webgl_param') return fieldsFromWebGlParam(configMap || {});
   if (checkKey === 'webgpu') return fieldsFromWebGpu(configMap || {});
 
@@ -1124,9 +1142,12 @@ function fieldsForCheck(checkKey, configMap, platform) {
     }
   }
   const skipKeys = platform?.skipConfigKeys;
+  const map = configMap || {};
   return fields.filter((f) => {
     if (f.skip) return false;
     if (skipKeys && f.configKey && skipKeys.has(f.configKey)) return false;
+    // Moi check: khong co key trong config → khong scrape / khong hien tu web
+    if (!fieldPresentInConfig(f, map)) return false;
     return true;
   });
 }
@@ -1146,6 +1167,7 @@ module.exports = {
   RECIPES,
   xpathValue,
   fieldsForCheck,
+  fieldPresentInConfig,
   buildField,
   buildExpandFields,
   fieldsFromWebGlParam,
