@@ -9,16 +9,32 @@
  * Khi reload / mo app: quet toan bo trang de bo tick UUID da bi xoa ben Hidemium
  * (tranh bam Chay van mo profile chet -> loi "mo profile" tren Detail Log).
  *
- * Phan trang UI: fetch het API pages -> loc theo targetOs (+ search) -> slice PAGE_SIZE.
+ * Phan trang UI: fetch het API pages -> loc theo targetOs (+ search) -> slice pageSize.
  * Tranh trang API toan Win chi con 1-2 Mac sau khi loc OS.
  */
 window.ProfileSource = (() => {
   let loading = false;
 
-  /** So profile moi trang UI (sau khi loc OS). */
-  const PAGE_SIZE = 20;
+  /** Lua chon so profile / trang UI (sau khi loc OS). */
+  const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
+  const DEFAULT_PAGE_SIZE = 20;
 
   const LABEL = { cloud: 'Cloud', local: 'Local' };
+
+  function getPageSize() {
+    const raw = State.config?.pageSize ?? State.meta?.perPage ?? DEFAULT_PAGE_SIZE;
+    const n = Number(raw);
+    return PAGE_SIZE_OPTIONS.includes(n) ? n : DEFAULT_PAGE_SIZE;
+  }
+
+  function setPageSize(next) {
+    const n = Number(next);
+    const size = PAGE_SIZE_OPTIONS.includes(n) ? n : DEFAULT_PAGE_SIZE;
+    if (State.config) State.config.pageSize = size;
+    window.api?.config?.set?.({ pageSize: size });
+    State.meta = { ...(State.meta || {}), perPage: size };
+    return size;
+  }
 
   function setTabs(source) {
     $('#tab-cloud').classList.toggle('active', source === 'cloud');
@@ -60,15 +76,16 @@ window.ProfileSource = (() => {
    */
   function applyView(page = State.page || 1) {
     const filtered = filterBySearch(filterByOs(State.allRows || []));
-    const lastPage = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE) || 1);
+    const pageSize = getPageSize();
+    const lastPage = Math.max(1, Math.ceil(filtered.length / pageSize) || 1);
     const p = Math.min(Math.max(1, Number(page) || 1), lastPage);
-    const start = (p - 1) * PAGE_SIZE;
-    State.rows = filtered.slice(start, start + PAGE_SIZE);
+    const start = (p - 1) * pageSize;
+    State.rows = filtered.slice(start, start + pageSize);
     State.page = p;
     State.meta = {
       currentPage: p,
       lastPage,
-      perPage: PAGE_SIZE,
+      perPage: pageSize,
       total: filtered.length,
     };
   }
@@ -170,7 +187,7 @@ window.ProfileSource = (() => {
       setLoading(false);
       State.allRows = [];
       State.rows = [];
-      State.meta = { currentPage: 1, lastPage: 1, total: 0, perPage: PAGE_SIZE };
+      State.meta = { currentPage: 1, lastPage: 1, total: 0, perPage: getPageSize() };
       $('#source-info').textContent = t('log.loadFailInfo', { source: LABEL[source] });
       Table.render();
       renderPager();
@@ -254,23 +271,37 @@ window.ProfileSource = (() => {
   }
 
   function renderPager() {
-    const { currentPage, lastPage } = State.meta;
+    const { currentPage, lastPage, total } = State.meta;
     const box = $('#pager');
+    if (!box) return;
 
-    if (!lastPage || lastPage <= 1) {
+    // Khong co data → an pager
+    if (!total && !(State.allRows || []).length) {
       box.innerHTML = '';
       return;
     }
 
-    const nums = pageNumbers(currentPage, lastPage);
-    let html = `<button class="pg" data-page="${currentPage - 1}" ${currentPage <= 1 ? 'disabled' : ''}>&lsaquo;</button>`;
+    const pageSize = getPageSize();
+    const sizeOpts = PAGE_SIZE_OPTIONS.map(
+      (n) => `<option value="${n}" ${n === pageSize ? 'selected' : ''}>${n}</option>`
+    ).join('');
 
-    nums.forEach((p, i) => {
-      if (i > 0 && p - nums[i - 1] > 1) html += `<span class="pg-gap">...</span>`;
-      html += `<button class="pg ${p === currentPage ? 'active' : ''}" data-page="${p}">${p}</button>`;
-    });
+    let html = `<label class="pager-size" title="${escapeHtml(t('pager.pageSizeTitle'))}">`;
+    html += `<select id="sel-page-size" aria-label="${escapeHtml(t('pager.pageSizeTitle'))}">${sizeOpts}</select>`;
+    html += `<span>${escapeHtml(t('pager.pageSize'))}</span></label>`;
 
-    html += `<button class="pg" data-page="${currentPage + 1}" ${currentPage >= lastPage ? 'disabled' : ''}>&rsaquo;</button>`;
+    if (lastPage > 1) {
+      const nums = pageNumbers(currentPage, lastPage);
+      html += `<div class="pager-pages">`;
+      html += `<button class="pg" data-page="${currentPage - 1}" ${currentPage <= 1 ? 'disabled' : ''}>&lsaquo;</button>`;
+      nums.forEach((p, i) => {
+        if (i > 0 && p - nums[i - 1] > 1) html += `<span class="pg-gap">...</span>`;
+        html += `<button class="pg ${p === currentPage ? 'active' : ''}" data-page="${p}">${p}</button>`;
+      });
+      html += `<button class="pg" data-page="${currentPage + 1}" ${currentPage >= lastPage ? 'disabled' : ''}>&rsaquo;</button>`;
+      html += `</div>`;
+    }
+
     box.innerHTML = html;
   }
 
@@ -292,7 +323,8 @@ window.ProfileSource = (() => {
       load({ page: State.page, pruneSelection: true })
     );
 
-    $('#pager').addEventListener('click', (e) => {
+    const pager = $('#pager');
+    pager.addEventListener('click', (e) => {
       const btn = e.target.closest('.pg');
       if (!btn || btn.disabled) return;
       const page = Number(btn.dataset.page);
@@ -308,6 +340,13 @@ window.ProfileSource = (() => {
         last: State.meta.lastPage,
       });
     });
+
+    pager.addEventListener('change', (e) => {
+      const sel = e.target.closest('#sel-page-size');
+      if (!sel) return;
+      setPageSize(sel.value);
+      refreshView({ page: 1 });
+    });
   }
 
   return {
@@ -318,6 +357,7 @@ window.ProfileSource = (() => {
     pruneMissingSelections,
     unselect,
     refreshView,
-    PAGE_SIZE,
+    getPageSize,
+    PAGE_SIZE_OPTIONS,
   };
 })();

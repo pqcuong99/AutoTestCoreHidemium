@@ -20,6 +20,7 @@ const DEFAULTS = {
   targetOs: 'windows',    // all | windows | macos | linux | ios | android
   /** true = openProfile kem restore_session=false (khong mo lai tab cu) */
   disableRestoreSession: true,
+  pageSize: 20,           // so profile moi trang UI (10|20|50|100)
 };
 
 let cachePath = null;

@@ -113,6 +113,8 @@ const I18N_VI = {
   'log.loadFailInfo': 'Không tải được ({source})',
   'log.loadFail': 'Lỗi tải profile ({source}): {error}',
   'log.loadedInfo': '{total} profile — trang {page}/{last}',
+  'pager.pageSize': '/ trang',
+  'pager.pageSizeTitle': 'Số profile mỗi trang',
   'log.loaded': 'Đã tải {n} profile ({source}) — trang {page}/{last}.',
 
   'check.opening': 'Mở profile {name}...',

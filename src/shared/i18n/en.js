@@ -113,6 +113,8 @@ const I18N_EN = {
   'log.loadFailInfo': 'Failed to load ({source})',
   'log.loadFail': 'Failed to load profiles ({source}): {error}',
   'log.loadedInfo': '{total} profiles — page {page}/{last}',
+  'pager.pageSize': '/ page',
+  'pager.pageSizeTitle': 'Profiles per page',
   'log.loaded': 'Loaded {n} profiles ({source}) — page {page}/{last}.',
 
   'check.opening': 'Opening profile {name}...',

@@ -245,10 +245,23 @@ body {
 
 /* ---------- Pager ---------- */
 .pager {
-  display: flex; align-items: center; justify-content: center; gap: 4px;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
   padding: 8px; border-top: 1px solid var(--border); flex-wrap: wrap;
 }
 .pager:empty { display: none; }
+.pager-size {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; color: var(--muted); margin-right: 4px;
+}
+.pager-size select {
+  min-width: 56px; height: 28px; padding: 0 6px;
+  border: 1px solid var(--border); background: var(--panel-2); color: var(--text);
+  border-radius: 6px; font-size: 12px; cursor: pointer; outline: none;
+}
+.pager-size select:hover { background: var(--hover); }
+.pager-pages {
+  display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap;
+}
 .pg {
   min-width: 30px; height: 28px; padding: 0 8px;
   border: 1px solid var(--border); background: var(--panel-2); color: var(--text);
