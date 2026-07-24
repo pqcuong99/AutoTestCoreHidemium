@@ -12,8 +12,12 @@
 window.DetailLog = (() => {
   const S = () => DStore.state;
   const GEOM_KEY = 'autotest.dlWindowGeom';
+  const ZOOM_KEY = 'autotest.dlZoom';
   const MIN_W = 480;
   const MIN_H = 280;
+  const ZOOM_MIN = 0.7;
+  const ZOOM_MAX = 1.6;
+  const ZOOM_STEP = 0.1;
 
   let isOpen = false;
   let maximized = false;
@@ -21,6 +25,7 @@ window.DetailLog = (() => {
   let restoreGeom = null;
   /** @type {(() => void) | null} */
   let clampLogHeight = null;
+  let contentZoom = 1;
 
   function pushLog(rec, message, kind) {
     rec.logs.push({
@@ -252,6 +257,37 @@ window.DetailLog = (() => {
     };
   }
 
+  function loadSavedZoom() {
+    try {
+      const n = Number(localStorage.getItem(ZOOM_KEY));
+      if (Number.isFinite(n) && n >= ZOOM_MIN && n <= ZOOM_MAX) return n;
+    } catch {
+      /* ignore */
+    }
+    return 1;
+  }
+
+  function saveZoom() {
+    try {
+      localStorage.setItem(ZOOM_KEY, String(contentZoom));
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function applyContentZoom(next) {
+    const n = Math.round(Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, next)) * 100) / 100;
+    contentZoom = n;
+    const m = modalEl();
+    if (m) m.style.zoom = n === 1 ? '' : String(n);
+    saveZoom();
+    clampLogHeight?.();
+  }
+
+  function bumpContentZoom(delta) {
+    applyContentZoom(contentZoom + delta);
+  }
+
   function loadSavedGeom() {
     try {
       const raw = localStorage.getItem(GEOM_KEY);
@@ -402,6 +438,7 @@ window.DetailLog = (() => {
     const saved = loadSavedGeom();
     setMaximized(false);
     applyGeom(saved || defaultGeom());
+    applyContentZoom(loadSavedZoom());
     DRender.head();
     DRender.all();
     clampLogHeight?.();
@@ -504,7 +541,29 @@ window.DetailLog = (() => {
     });
 
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && isOpen) close();
+      if (!isOpen) return;
+      if (e.key === 'Escape') {
+        close();
+        return;
+      }
+
+      // Ctrl/Cmd + / - / 0 : phong to / thu nho noi dung Detail Log
+      const mod = e.metaKey || e.ctrlKey;
+      if (!mod) return;
+      const key = e.key;
+      const code = e.code;
+      const zoomOut =
+        key === '-' || key === '_' || code === 'Minus' || code === 'NumpadSubtract';
+      const zoomIn =
+        key === '=' || key === '+' || code === 'Equal' || code === 'NumpadAdd';
+      const zoomReset = key === '0' || code === 'Digit0' || code === 'Numpad0';
+      if (!zoomOut && !zoomIn && !zoomReset) return;
+
+      e.preventDefault();
+      e.stopPropagation();
+      if (zoomReset) applyContentZoom(1);
+      else if (zoomIn) bumpContentZoom(ZOOM_STEP);
+      else bumpContentZoom(-ZOOM_STEP);
     });
 
     // Bam "+ N more lines" / "Show less" trong o Config / site
